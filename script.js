@@ -1,4 +1,4 @@
-```javascript
+
 /* =========================================
    CtrlShift — Developer Utilities
    File: script.js
