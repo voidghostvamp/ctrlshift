@@ -1,203 +1,204 @@
 
-/* =========================================
-   CtrlShift — Developer Utilities
-   File: script.js
-   No database. No backend. No paid APIs.
-========================================= */
-
 "use strict";
 
-/* ---------- STORAGE ---------- */
+/* =========================================
+   CtrlShift — Developer Tools
+   Plain HTML, CSS and JavaScript
+   ========================================= */
 
-const storage = {
-    get(key, fallback = []) {
-        try {
-            const value = localStorage.getItem("ctrlshift_" + key);
-            return value === null ? fallback : JSON.parse(value);
-        } catch {
-            return fallback;
-        }
-    },
-
-    set(key, value) {
-        try {
-            localStorage.setItem("ctrlshift_" + key, JSON.stringify(value));
-        } catch {
-            // The app still works if browser storage is unavailable.
-        }
-    }
+const STORAGE_KEYS = {
+    favorites: "ctrlshift-favorites",
+    recent: "ctrlshift-recent",
+    theme: "ctrlshift-theme"
 };
 
-let favorites = storage.get("favorites", []);
-let recentTools = storage.get("recent", []);
-let currentTool = null;
-let currentCategory = "all";
+const $ = (selector, parent = document) => parent.querySelector(selector);
+const $$ = (selector, parent = document) =>
+    [...parent.querySelectorAll(selector)];
+
+function readStorage(key, fallback = []) {
+    try {
+        const value = JSON.parse(localStorage.getItem(key));
+        return value ?? fallback;
+    } catch {
+        return fallback;
+    }
+}
+
+function writeStorage(key, value) {
+    try {
+        localStorage.setItem(key, JSON.stringify(value));
+    } catch (error) {
+        console.warn("Could not save browser data:", error);
+    }
+}
+
+let favorites = readStorage(STORAGE_KEYS.favorites, []);
+let recentTools = readStorage(STORAGE_KEYS.recent, []);
+let activeCategory = "all";
 let currentPage = "dashboard";
-let searchQuery = "";
-
-
-/* ---------- TOOL DIRECTORY ---------- */
+let currentToolId = null;
 
 const tools = [
     {
-        id: "json",
+        id: "json-format",
         name: "JSON Formatter",
-        description: "Format, validate and inspect JSON data.",
+        description: "Format messy JSON into readable, structured data.",
         category: "code",
         icon: "{ }",
-        type: "json"
+        action: "json-format"
     },
     {
-        id: "html-entities",
-        name: "HTML Entity Converter",
-        description: "Encode and decode HTML special characters.",
+        id: "json-minify",
+        name: "JSON Minifier",
+        description: "Remove unnecessary whitespace from JSON.",
         category: "code",
-        icon: "</>",
-        type: "html-entities"
+        icon: "{ }",
+        action: "json-minify"
     },
     {
-        id: "number-base",
-        name: "Number Base Converter",
-        description: "Convert binary, decimal and hexadecimal numbers.",
+        id: "json-validate",
+        name: "JSON Validator",
+        description: "Check whether your JSON is valid.",
         category: "code",
-        icon: "01",
-        type: "number-base"
+        icon: "✓",
+        action: "json-validate"
+    },
+    {
+        id: "regex-tester",
+        name: "Regex Tester",
+        description: "Test regular expressions against sample text.",
+        category: "code",
+        icon: ".*",
+        action: "regex-test"
     },
     {
         id: "text-case",
         name: "Text Case Converter",
-        description: "Convert text into different letter cases.",
+        description: "Convert text to uppercase, lowercase and more.",
         category: "text",
         icon: "Aa",
-        type: "text-case"
+        action: "text-case"
     },
     {
-        id: "text-stats",
-        name: "Text Counter",
+        id: "word-counter",
+        name: "Word Counter",
         description: "Count words, characters, lines and sentences.",
         category: "text",
         icon: "T",
-        type: "text-stats"
+        action: "word-count"
     },
     {
         id: "duplicate-lines",
         name: "Duplicate Line Remover",
-        description: "Remove repeated lines from text.",
+        description: "Remove repeated lines while preserving order.",
         category: "text",
         icon: "≡",
-        type: "duplicate-lines"
+        action: "duplicate-lines"
     },
     {
-        id: "find-replace",
-        name: "Find & Replace",
-        description: "Find words and replace matching text.",
+        id: "text-reverse",
+        name: "Text Reverser",
+        description: "Reverse characters or the order of words.",
         category: "text",
-        icon: "⌕",
-        type: "find-replace"
+        icon: "↔",
+        action: "text-reverse"
     },
     {
-        id: "base64",
-        name: "Base64 Converter",
-        description: "Encode and decode text using Base64.",
-        category: "web",
-        icon: "B64",
-        type: "base64"
-    },
-    {
-        id: "url",
-        name: "URL Encoder",
-        description: "Encode and decode URL components.",
+        id: "url-encoder",
+        name: "URL Encoder / Decoder",
+        description: "Encode or decode URL components.",
         category: "web",
         icon: "↗",
-        type: "url"
+        action: "url-encode"
     },
     {
-        id: "query",
-        name: "Query String Parser",
-        description: "Inspect parameters from a URL query string.",
+        id: "url-parser",
+        name: "URL Parser",
+        description: "Inspect the parts of a URL.",
         category: "web",
-        icon: "?=",
-        type: "query"
+        icon: "⌕",
+        action: "url-parse"
+    },
+    {
+        id: "html-entities",
+        name: "HTML Entity Converter",
+        description: "Encode or decode special HTML characters.",
+        category: "web",
+        icon: "</>",
+        action: "html-entities"
     },
     {
         id: "timestamp",
         name: "Timestamp Converter",
-        description: "Convert Unix timestamps into readable dates.",
+        description: "Convert Unix timestamps and readable dates.",
         category: "web",
         icon: "◷",
-        type: "timestamp"
+        action: "timestamp"
     },
     {
-        id: "password",
+        id: "password-generate",
         name: "Password Generator",
-        description: "Generate random passwords in your browser.",
+        description: "Generate a random password with your options.",
         category: "generators",
         icon: "✳",
-        type: "password"
+        action: "password-generate"
     },
     {
-        id: "uuid",
+        id: "uuid-generate",
         name: "UUID Generator",
-        description: "Generate random version 4 UUIDs.",
+        description: "Generate a random version 4 UUID.",
         category: "generators",
-        icon: "ID",
-        type: "uuid"
+        icon: "◇",
+        action: "uuid-generate"
     },
     {
-        id: "lorem",
+        id: "lorem-generate",
         name: "Lorem Ipsum Generator",
-        description: "Generate placeholder text for designs.",
+        description: "Generate placeholder text for layouts.",
         category: "generators",
         icon: "¶",
-        type: "lorem"
+        action: "lorem-generate"
     },
     {
-        id: "random",
-        name: "Random Number Generator",
-        description: "Generate random integers in a chosen range.",
-        category: "generators",
-        icon: "🎲",
-        type: "random"
-    },
-    {
-        id: "color",
-        name: "Color Converter",
-        description: "Convert HEX, RGB and HSL color values.",
-        category: "colors",
-        icon: "#",
-        type: "color"
-    },
-    {
-        id: "gradient",
-        name: "CSS Gradient Generator",
-        description: "Build gradients and copy the CSS.",
-        category: "colors",
-        icon: "◐",
-        type: "gradient"
-    },
-    {
-        id: "contrast",
-        name: "Contrast Checker",
-        description: "Check text contrast against a background.",
-        category: "colors",
-        icon: "◑",
-        type: "contrast"
-    },
-    {
-        id: "units",
-        name: "Storage Unit Converter",
-        description: "Convert bytes, KB, MB and GB.",
-        category: "web",
-        icon: "⇄",
-        type: "units"
-    },
-    {
-        id: "percentage",
+        id: "percentage-calculate",
         name: "Percentage Calculator",
-        description: "Calculate percentages and percentage changes.",
+        description: "Calculate a percentage of any number.",
         category: "generators",
         icon: "%",
-        type: "percentage"
+        action: "percentage-calculate"
+    },
+    {
+        id: "color-convert",
+        name: "Color Converter",
+        description: "Convert HEX colors into RGB and HSL.",
+        category: "colors",
+        icon: "◐",
+        action: "color-convert"
+    },
+    {
+        id: "color-random",
+        name: "Random Color Generator",
+        description: "Generate random HEX colors instantly.",
+        category: "colors",
+        icon: "#",
+        action: "color-random"
+    },
+    {
+        id: "gradient-generate",
+        name: "CSS Gradient Generator",
+        description: "Create a gradient and copy its CSS.",
+        category: "colors",
+        icon: "◒",
+        action: "gradient-generate"
+    },
+    {
+        id: "color-contrast",
+        name: "Color Contrast Checker",
+        description: "Check contrast between foreground and background.",
+        category: "colors",
+        icon: "◑",
+        action: "color-contrast"
     }
 ];
 
@@ -210,317 +211,302 @@ const categoryNames = {
     colors: "Color Tools"
 };
 
+const categoryDescriptions = {
+    all: "Small tools that make a big difference.",
+    code: "Utilities for working with code and data.",
+    text: "Quick tools for everyday text tasks.",
+    web: "Utilities for URLs, HTML and timestamps.",
+    generators: "Generate useful values and content.",
+    colors: "Convert, generate and compare colors."
+};
 
-/* ---------- ELEMENT HELPERS ---------- */
 
-const $ = (selector, parent = document) =>
-    parent.querySelector(selector);
+/* =========================================
+   INITIALIZATION
+   ========================================= */
 
-const $$ = (selector, parent = document) =>
-    [...parent.querySelectorAll(selector)];
+document.addEventListener("DOMContentLoaded", init);
 
-function escapeHTML(value) {
-    return String(value).replace(/[&<>"']/g, character => ({
-        "&": "&amp;",
-        "<": "&lt;",
-        ">": "&gt;",
-        '"': "&quot;",
-        "'": "&#39;"
-    })[character]);
-}
+function init() {
+    // Keep saved data valid if browser storage was edited.
+    favorites = favorites.filter(id => tools.some(tool => tool.id === id));
+    recentTools = recentTools.filter(id => tools.some(tool => tool.id === id));
 
-function getTool(id) {
-    return tools.find(tool => tool.id === id);
-}
+    writeStorage(STORAGE_KEYS.favorites, favorites);
+    writeStorage(STORAGE_KEYS.recent, recentTools);
 
-function getInput(id) {
-    const element = document.getElementById(id);
-    return element ? element.value : "";
-}
+    applySavedTheme();
+    bindNavigation();
+    bindSearch();
+    bindThemeToggle();
+    bindSidebar();
+    bindKeyboardShortcuts();
+    bindGlobalClicks();
 
-function setOutput(id, value) {
-    const element = document.getElementById(id);
-    if (element) element.textContent = String(value);
-}
-
-function setMessage(id, message, isError = false) {
-    const element = document.getElementById(id);
-    if (!element) return;
-
-    element.textContent = message;
-    element.classList.toggle("error", isError);
-}
-
-function makeTextarea(id, placeholder, value = "") {
-    return `
-        <label class="tool-label" for="${id}">
-            Input
-        </label>
-        <textarea
-            class="tool-textarea"
-            id="${id}"
-            placeholder="${escapeHTML(placeholder)}"
-            spellcheck="false"
-        >${escapeHTML(value)}</textarea>
-    `;
-}
-
-function makeOutput(id = "tool-output") {
-    return `
-        <label class="tool-label" for="${id}">
-            Output
-        </label>
-        <pre class="tool-output" id="${id}"></pre>
-    `;
-}
-
-function makePanel(title, description, content) {
-    return `
-        <div class="tool-panel">
-            <h2>${escapeHTML(title)}</h2>
-            <p>${escapeHTML(description)}</p>
-            ${content}
-        </div>
-    `;
-}
-
-function makeButton(label, action, primary = false) {
-    return `
-        <button
-            class="${primary ? "primary-button" : "secondary-button"}"
-            data-action="${action}"
-            type="button"
-        >${escapeHTML(label)}</button>
-    `;
-}
-
-function makeSelect(id, options) {
-    return `
-        <select class="tool-select" id="${id}">
-            ${options.map(option => `
-                <option value="${escapeHTML(option[0])}">
-                    ${escapeHTML(option[1])}
-                </option>
-            `).join("")}
-        </select>
-    `;
+    renderDashboard();
+    updateStats();
+    showPage("dashboard");
 }
 
 
-/* ---------- TOOL CARDS ---------- */
+/* =========================================
+   NAVIGATION
+   ========================================= */
 
-function createToolCard(tool) {
-    const isFavorite = favorites.includes(tool.id);
-
-    const card = document.createElement("article");
-    card.className = "tool-card";
-    card.tabIndex = 0;
-    card.setAttribute("role", "button");
-    card.setAttribute("aria-label", `Open ${tool.name}`);
-
-    card.innerHTML = `
-        <div class="tool-card-icon">${escapeHTML(tool.icon)}</div>
-
-        <button
-            type="button"
-            class="card-favorite ${isFavorite ? "is-favorite" : ""}"
-            data-favorite="${escapeHTML(tool.id)}"
-            aria-label="${isFavorite ? "Remove from" : "Add to"} favorites"
-            aria-pressed="${isFavorite}"
-            title="${isFavorite ? "Remove favorite" : "Add favorite"}"
-        >${isFavorite ? "★" : "☆"}</button>
-
-        <h3>${escapeHTML(tool.name)}</h3>
-        <p>${escapeHTML(tool.description)}</p>
-
-        <div class="card-bottom">
-            <span class="tool-category">
-                ${escapeHTML(categoryNames[tool.category])}
-            </span>
-            <span class="open-arrow">↗</span>
-        </div>
-    `;
-
-    card.dataset.tool = tool.id;
-
-    return card;
-}
-
-function renderToolGrid(container, list) {
-    if (!container) return;
-
-    container.replaceChildren();
-
-    list.forEach(tool => {
-        container.appendChild(createToolCard(tool));
-    });
-}
-
-function updateCounts() {
-    $("#total-tools").textContent = tools.length;
-    $("#favorite-count").textContent = favorites.length;
-    $("#recent-count").textContent = recentTools.length;
-
-    const navCount = $('[data-category="all"] .nav-count');
-    if (navCount) navCount.textContent = tools.length;
-}
-
-
-/* ---------- DASHBOARD ---------- */
-
-function renderDashboard() {
-    const query = searchQuery.trim().toLowerCase();
-
-    let list = tools.filter(tool => {
-        const matchesCategory =
-            currentCategory === "all" ||
-            tool.category === currentCategory;
-
-        const matchesSearch =
-            !query ||
-            tool.name.toLowerCase().includes(query) ||
-            tool.description.toLowerCase().includes(query) ||
-            categoryNames[tool.category].toLowerCase().includes(query);
-
-        return matchesCategory && matchesSearch;
+function bindNavigation() {
+    $$("[data-page]").forEach(button => {
+        button.addEventListener("click", () => {
+            showPage(button.dataset.page);
+            closeSidebar();
+        });
     });
 
-    renderToolGrid($("#tool-grid"), list);
+    $$("[data-category]").forEach(button => {
+        button.addEventListener("click", () => {
+            const category = button.dataset.category;
 
-    $("#result-count").textContent =
-        `${list.length} tool${list.length === 1 ? "" : "s"}`;
+            if (!category) return;
 
-    $("#tools-heading").textContent =
-        query ? "Search results" :
-        currentCategory === "all" ? "Explore tools" :
-        categoryNames[currentCategory];
+            activeCategory = category;
+            $("#tool-search").value = "";
 
-    $("#tools-description").textContent =
-        query ? `Results for "${searchQuery.trim()}"` :
-        "Small tools that make a big difference.";
+            showPage("dashboard");
+            renderDashboard();
+            closeSidebar();
 
-    $("#no-results").classList.toggle("hidden", list.length !== 0);
-    $("#tool-grid").classList.toggle("hidden", list.length === 0);
-
-    $$(".filter-chip").forEach(button => {
-        const active = button.dataset.filter === currentCategory;
-        button.classList.toggle("active", active);
-        button.setAttribute("aria-pressed", String(active));
+            $("#tools-section").scrollIntoView({
+                behavior: "smooth",
+                block: "start"
+            });
+        });
     });
 
-    renderToolGrid(
-        $("#favorite-tools"),
-        favorites.map(getTool).filter(Boolean).slice(0, 3)
-    );
-
-    renderToolGrid(
-        $("#favorites-page-grid"),
-        favorites.map(getTool).filter(Boolean)
-    );
-
-    renderToolGrid(
-        $("#recent-tools-grid"),
-        recentTools.map(getTool).filter(Boolean)
-    );
-
-    $("#favorites-empty").classList.toggle("hidden", favorites.length > 0);
-    $("#recent-empty").classList.toggle("hidden", recentTools.length > 0);
-
-    $("#favorites-page-grid").classList.toggle("hidden", favorites.length === 0);
-    $("#recent-tools-grid").classList.toggle("hidden", recentTools.length === 0);
-
-    updateCounts();
+    $("#back-to-dashboard").addEventListener("click", () => {
+        showPage("dashboard");
+    });
 }
-
-
-/* ---------- NAVIGATION ---------- */
 
 function showPage(page) {
+    const validPages = [
+        "dashboard",
+        "tool",
+        "favorites",
+        "recent"
+    ];
+
+    if (!validPages.includes(page)) {
+        page = "dashboard";
+    }
+
     currentPage = page;
 
     $$(".page").forEach(section => {
-        section.classList.add("hidden");
         section.classList.remove("active");
+        section.classList.add("hidden");
     });
 
-    const pageElement = $(`#${page}-page`);
+    const target = $(`#${page}-page`);
 
-    if (pageElement) {
-        pageElement.classList.remove("hidden");
-        pageElement.classList.add("active");
+    if (target) {
+        target.classList.remove("hidden");
+        target.classList.add("active");
     }
 
-    const names = {
+    const breadcrumbNames = {
         dashboard: "Dashboard",
-        tool: currentTool ? currentTool.name : "Tool",
+        tool: currentToolId
+            ? getTool(currentToolId)?.name || "Tool"
+            : "Tool",
         favorites: "Favorites",
         recent: "Recently Used"
     };
 
-    $("#breadcrumb-current").textContent = names[page] || "Dashboard";
+    $("#breadcrumb-current").textContent = breadcrumbNames[page];
 
     $$(".nav-link").forEach(button => {
-        const isActive =
-            (page === "dashboard" && button.dataset.page === "dashboard") ||
-            (page === "favorites" && button.dataset.page === "favorites") ||
-            (page === "recent" && button.dataset.page === "recent") ||
-            (page === "dashboard" &&
-                button.dataset.category === currentCategory &&
-                !button.dataset.page);
-
-        button.classList.toggle("active", Boolean(isActive));
+        button.classList.remove("active");
     });
 
+    const matchingNav = $(
+        `.nav-link[data-page="${page}"]`
+    );
+
+    if (matchingNav) {
+        matchingNav.classList.add("active");
+    } else if (page === "dashboard" && activeCategory !== "all") {
+        const categoryNav = $(
+            `.nav-link[data-category="${activeCategory}"]`
+        );
+
+        categoryNav?.classList.add("active");
+    } else if (page === "dashboard") {
+        $('.nav-link[data-page="dashboard"]')?.classList.add("active");
+    }
+
+    if (page === "favorites") {
+        renderFavoritesPage();
+    }
+
+    if (page === "recent") {
+        renderRecentPage();
+    }
+
     closeSidebar();
-    window.scrollTo({ top: 0, behavior: "smooth" });
-}
-
-function goDashboard() {
-    currentTool = null;
-    showPage("dashboard");
-}
-
-function openCategory(category) {
-    currentCategory = category;
-    searchQuery = "";
-    $("#tool-search").value = "";
-
-    renderDashboard();
-    showPage("dashboard");
-}
-
-function openTool(id) {
-    const tool = getTool(id);
-    if (!tool) return;
-
-    currentTool = tool;
-
-    recentTools = [
-        id,
-        ...recentTools.filter(item => item !== id)
-    ].slice(0, 8);
-
-    storage.set("recent", recentTools);
-
-    $("#workspace-icon").textContent = tool.icon;
-    $("#workspace-title").textContent = tool.name;
-    $("#workspace-description").textContent = tool.description;
-    $("#workspace-category").textContent = categoryNames[tool.category].toUpperCase();
-
-    updateFavoriteButton();
-    renderWorkspace(tool);
-
-    showPage("tool");
-    renderDashboard();
-}
-
-function closeSidebar() {
-    $("#sidebar").classList.remove("open");
-    $("#menu-toggle").setAttribute("aria-expanded", "false");
 }
 
 
-/* ---------- FAVORITES ---------- */
+/* =========================================
+   SEARCH AND FILTERS
+   ========================================= */
+
+function bindSearch() {
+    const search = $("#tool-search");
+
+    search.addEventListener("input", () => {
+        activeCategory = getSelectedFilter();
+        renderDashboard();
+    });
+
+    $$(".filter-chip").forEach(button => {
+        button.addEventListener("click", () => {
+            activeCategory = button.dataset.filter || "all";
+            search.value = "";
+            renderDashboard();
+        });
+    });
+
+    $("#clear-search").addEventListener("click", () => {
+        search.value = "";
+        activeCategory = "all";
+        renderDashboard();
+        search.focus();
+    });
+}
+
+function getSelectedFilter() {
+    return $(".filter-chip.active")?.dataset.filter || activeCategory;
+}
+
+function getFilteredTools() {
+    const query = $("#tool-search").value.trim().toLowerCase();
+
+    return tools.filter(tool => {
+        const matchesCategory =
+            activeCategory === "all" ||
+            tool.category === activeCategory;
+
+        const searchable = [
+            tool.name,
+            tool.description,
+            tool.category
+        ].join(" ").toLowerCase();
+
+        return matchesCategory && searchable.includes(query);
+    });
+}
+
+function renderDashboard() {
+    const grid = $("#tool-grid");
+    const filtered = getFilteredTools();
+    const query = $("#tool-search").value.trim();
+
+    $$(".filter-chip").forEach(button => {
+        button.classList.toggle(
+            "active",
+            button.dataset.filter === activeCategory
+        );
+    });
+
+    $("#tools-heading").textContent = query
+        ? "Search results"
+        : activeCategory === "all"
+            ? "Explore tools"
+            : categoryNames[activeCategory];
+
+    $("#tools-description").textContent = query
+        ? `Results matching "${query}".`
+        : categoryDescriptions[activeCategory] || categoryDescriptions.all;
+
+    $("#result-count").textContent =
+        `${filtered.length} ${filtered.length === 1 ? "tool" : "tools"}`;
+
+    grid.innerHTML = filtered.map(createToolCard).join("");
+
+    $("#no-results").classList.toggle("hidden", filtered.length !== 0);
+    grid.classList.toggle("hidden", filtered.length === 0);
+
+    renderQuickFavorites();
+    updateStats();
+}
+
+function createToolCard(tool) {
+    const isFavorite = favorites.includes(tool.id);
+
+    return `
+        <article class="tool-card" data-tool-card="${tool.id}">
+            <button
+                class="card-favorite ${isFavorite ? "is-favorite" : ""}"
+                data-favorite="${tool.id}"
+                aria-label="${isFavorite ? "Remove from" : "Add to"} favorites"
+                title="${isFavorite ? "Remove favorite" : "Add favorite"}"
+                type="button">${isFavorite ? "★" : "☆"}</button>
+
+            <button class="tool-card-open" data-open-tool="${tool.id}" type="button">
+                <div class="tool-card-icon">${escapeHTML(tool.icon)}</div>
+                <span class="tool-category">${escapeHTML(categoryNames[tool.category])}</span>
+                <h3>${escapeHTML(tool.name)}</h3>
+                <p>${escapeHTML(tool.description)}</p>
+                <span class="tool-card-arrow">Open tool <span>→</span></span>
+            </button>
+        </article>
+    `;
+}
+
+function renderQuickFavorites() {
+    const container = $("#favorite-tools");
+    const favoriteList = favorites
+        .map(getTool)
+        .filter(Boolean)
+        .slice(0, 4);
+
+    if (favoriteList.length === 0) {
+        container.innerHTML = `
+            <div class="empty-state">
+                <span class="empty-icon">☆</span>
+                <p>No favorites yet</p>
+                <span>Star a tool to add it here.</span>
+            </div>
+        `;
+        return;
+    }
+
+    container.innerHTML = favoriteList.map(createToolCard).join("");
+}
+
+function renderFavoritesPage() {
+    const list = favorites.map(getTool).filter(Boolean);
+
+    $("#favorites-page-grid").innerHTML =
+        list.map(createToolCard).join("");
+
+    $("#favorites-empty").classList.toggle("hidden", list.length > 0);
+    $("#favorites-page-grid").classList.toggle("hidden", list.length === 0);
+}
+
+function renderRecentPage() {
+    const list = recentTools.map(getTool).filter(Boolean);
+
+    $("#recent-tools-grid").innerHTML =
+        list.map(createToolCard).join("");
+
+    $("#recent-empty").classList.toggle("hidden", list.length > 0);
+    $("#recent-tools-grid").classList.toggle("hidden", list.length === 0);
+}
+
+
+/* =========================================
+   FAVORITES AND RECENT ACTIVITY
+   ========================================= */
 
 function toggleFavorite(id) {
     if (!getTool(id)) return;
@@ -528,587 +514,814 @@ function toggleFavorite(id) {
     if (favorites.includes(id)) {
         favorites = favorites.filter(item => item !== id);
     } else {
-        favorites = [...favorites, id];
+        favorites.unshift(id);
     }
 
-    storage.set("favorites", favorites);
+    writeStorage(STORAGE_KEYS.favorites, favorites);
 
     renderDashboard();
-    updateFavoriteButton();
-}
 
-function updateFavoriteButton() {
-    if (!currentTool) return;
+    if (currentPage === "favorites") renderFavoritesPage();
+    if (currentPage === "recent") renderRecentPage();
 
-    const button = $("#workspace-favorite");
-    const active = favorites.includes(currentTool.id);
-
-    button.classList.toggle("is-favorite", active);
-    button.textContent = active ? "★" : "☆";
-    button.title = active ? "Remove from favorites" : "Add to favorites";
-    button.setAttribute("aria-pressed", String(active));
-    button.setAttribute(
-        "aria-label",
-        active ? "Remove from favorites" : "Add to favorites"
-    );
-}
-
-
-/* ---------- WORKSPACE RENDERER ---------- */
-
-function renderWorkspace(tool) {
-    const workspace = $("#tool-workspace");
-    workspace.replaceChildren();
-
-    // Templates contain only trusted, locally defined tool interfaces.
-    const templates = {
-        json: () => makePanel(
-            "JSON Formatter & Validator",
-            "Paste JSON below to format it or check its validity.",
-            makeTextarea("json-input", '{"name":"CtrlShift","tools":["JSON","Text"]}') +
-            `<div class="tool-actions">
-                ${makeButton("Format JSON", "json-format", true)}
-                ${makeButton("Minify JSON", "json-minify")}
-                ${makeButton("Validate", "json-validate")}
-                ${makeButton("Clear", "clear-input")}
-                ${makeButton("Copy output", "copy-output")}
-            </div>` +
-            makeOutput() +
-            `<div class="tool-message" id="tool-message" aria-live="polite"></div>`
-        ),
-
-        "html-entities": () => makePanel(
-            "HTML Entity Converter",
-            "Convert special characters to entities and back.",
-            makeTextarea("text-input", 'Example: <h1>Hello & "welcome"</h1>') +
-            `<div class="tool-actions">
-                ${makeButton("Encode", "html-encode", true)}
-                ${makeButton("Decode", "html-decode")}
-                ${makeButton("Clear", "clear-input")}
-                ${makeButton("Copy output", "copy-output")}
-            </div>` +
-            makeOutput()
-        ),
-
-        "number-base": () => makePanel(
-            "Number Base Converter",
-            "Convert an integer between number bases.",
-            `<div class="tool-form-group">
-                <label class="tool-label" for="base-input">Number</label>
-                <input class="tool-input" id="base-input" value="255" placeholder="Enter an integer">
-            </div>
-            <div class="tool-form-group">
-                <label class="tool-label" for="base-from">Input base</label>
-                ${makeSelect("base-from", [["10","Decimal"],["2","Binary"],["8","Octal"],["16","Hexadecimal"]])}
-            </div>
-            <div class="tool-actions">
-                ${makeButton("Convert", "number-base", true)}
-                ${makeButton("Copy output", "copy-output")}
-            </div>` +
-            makeOutput()
-        ),
-
-        "text-case": () => makePanel(
-            "Text Case Converter",
-            "Change the letter case of your text.",
-            makeTextarea("text-input", "Enter your text here...") +
-            `<div class="tool-form-group">
-                <label class="tool-label" for="case-type">Conversion</label>
-                ${makeSelect("case-type", [
-                    ["upper","UPPERCASE"],
-                    ["lower","lowercase"],
-                    ["title","Title Case"],
-                    ["sentence","Sentence case"],
-                    ["camel","camelCase"],
-                    ["pascal","PascalCase"],
-                    ["snake","snake_case"],
-                    ["kebab","kebab-case"]
-                ])}
-            </div>
-            <div class="tool-actions">
-                ${makeButton("Convert text", "text-case", true)}
-                ${makeButton("Clear", "clear-input")}
-                ${makeButton("Copy output", "copy-output")}
-            </div>` +
-            makeOutput()
-        ),
-
-        "text-stats": () => makePanel(
-            "Text Counter",
-            "Instantly calculate statistics about your text.",
-            makeTextarea("text-input", "Paste or type text here...") +
-            `<div class="tool-actions">
-                ${makeButton("Count text", "text-stats", true)}
-                ${makeButton("Clear", "clear-input")}
-            </div>` +
-            makeOutput()
-        ),
-
-        "duplicate-lines": () => makePanel(
-            "Duplicate Line Remover",
-            "Remove duplicate lines while preserving their first occurrence.",
-            makeTextarea("text-input", "Apple\nBanana\nApple\nOrange") +
-            `<div class="tool-actions">
-                ${makeButton("Remove duplicates", "duplicate-lines", true)}
-                ${makeButton("Copy output", "copy-output")}
-            </div>` +
-            makeOutput()
-        ),
-
-        "find-replace": () => makePanel(
-            "Find & Replace",
-            "Replace matching text in your input.",
-            makeTextarea("text-input", "Type your text here...") +
-            `<div class="tool-form-group">
-                <label class="tool-label" for="find-input">Find</label>
-                <input class="tool-input" id="find-input" placeholder="Text to find">
-            </div>
-            <div class="tool-form-group">
-                <label class="tool-label" for="replace-input">Replace with</label>
-                <input class="tool-input" id="replace-input" placeholder="Replacement text">
-            </div>
-            <div class="tool-actions">
-                ${makeButton("Replace all", "find-replace", true)}
-                ${makeButton("Copy output", "copy-output")}
-            </div>` +
-            makeOutput()
-        ),
-
-        base64: () => makePanel(
-            "Base64 Encoder / Decoder",
-            "Encode text or decode Base64 back into UTF-8 text.",
-            makeTextarea("text-input", "Enter text or Base64...") +
-            `<div class="tool-actions">
-                ${makeButton("Encode", "base64-encode", true)}
-                ${makeButton("Decode", "base64-decode")}
-                ${makeButton("Copy output", "copy-output")}
-            </div>` +
-            makeOutput() +
-            `<div class="tool-message" id="tool-message" aria-live="polite"></div>`
-        ),
-
-        url: () => makePanel(
-            "URL Encoder / Decoder",
-            "Encode URL components or decode encoded text.",
-            makeTextarea("text-input", "https://example.com/search?q=hello world") +
-            `<div class="tool-actions">
-                ${makeButton("Encode", "url-encode", true)}
-                ${makeButton("Decode", "url-decode")}
-                ${makeButton("Copy output", "copy-output")}
-            </div>` +
-            makeOutput()
-        ),
-
-        query: () => makePanel(
-            "Query String Parser",
-            "Extract and inspect URL query parameters.",
-            makeTextarea("text-input", "https://example.com/search?q=hello&page=2") +
-            `<div class="tool-actions">
-                ${makeButton("Parse query", "query-parse", true)}
-                ${makeButton("Copy output", "copy-output")}
-            </div>` +
-            makeOutput() +
-            `<div class="tool-message" id="tool-message" aria-live="polite"></div>`
-        ),
-
-        timestamp: () => makePanel(
-            "Timestamp Converter",
-            "Convert Unix timestamps and date strings.",
-            `<div class="tool-form-group">
-                <label class="tool-label" for="timestamp-input">Unix timestamp or date</label>
-                <input class="tool-input" id="timestamp-input" placeholder="e.g. 1700000000 or 2026-01-01">
-            </div>
-            <div class="tool-actions">
-                ${makeButton("Convert to date", "timestamp-date", true)}
-                ${makeButton("Current timestamp", "timestamp-now")}
-                ${makeButton("Copy output", "copy-output")}
-            </div>` +
-            makeOutput()
-        ),
-
-        password: () => makePanel(
-            "Password Generator",
-            "Generate random passwords locally. Generated passwords are not saved by CtrlShift.",
-            `<div class="tool-form-group">
-                <label class="tool-label" for="password-length">Password length</label>
-                <input class="tool-input" id="password-length" type="number" min="8" max="128" value="20">
-            </div>
-            <div class="tool-form-group">
-                <label class="tool-label"><input type="checkbox" id="password-upper" checked> Uppercase letters (A–Z)</label>
-                <label class="tool-label"><input type="checkbox" id="password-lower" checked> Lowercase letters (a–z)</label>
-                <label class="tool-label"><input type="checkbox" id="password-numbers" checked> Numbers (0–9)</label>
-                <label class="tool-label"><input type="checkbox" id="password-symbols" checked> Symbols</label>
-            </div>
-            <div class="tool-actions">
-                ${makeButton("Generate password", "password-generate", true)}
-                ${makeButton("Copy output", "copy-output")}
-            </div>` +
-            makeOutput() +
-            `<div class="tool-message" id="tool-message" aria-live="polite"></div>`
-        ),
-
-        uuid: () => makePanel(
-            "UUID v4 Generator",
-            "Generate random identifiers using the browser's cryptographic random generator.",
-            `<div class="tool-actions">
-                ${makeButton("Generate UUID", "uuid-generate", true)}
-                ${makeButton("Generate 10", "uuid-batch")}
-                ${makeButton("Copy output", "copy-output")}
-            </div>` +
-            makeOutput()
-        ),
-
-        lorem: () => makePanel(
-            "Lorem Ipsum Generator",
-            "Generate placeholder paragraphs for layouts and prototypes.",
-            `<div class="tool-form-group">
-                <label class="tool-label" for="lorem-count">Paragraphs</label>
-                <input class="tool-input" id="lorem-count" type="number" min="1" max="20" value="3">
-            </div>
-            <div class="tool-actions">
-                ${makeButton("Generate text", "lorem-generate", true)}
-                ${makeButton("Copy output", "copy-output")}
-            </div>` +
-            makeOutput()
-        ),
-
-        random: () => makePanel(
-            "Random Number Generator",
-            "Generate random integers within your chosen range.",
-            `<div class="tool-form-group">
-                <label class="tool-label" for="random-min">Minimum</label>
-                <input class="tool-input" id="random-min" type="number" value="1">
-            </div>
-            <div class="tool-form-group">
-                <label class="tool-label" for="random-max">Maximum</label>
-                <input class="tool-input" id="random-max" type="number" value="100">
-            </div>
-            <div class="tool-form-group">
-                <label class="tool-label" for="random-count">How many?</label>
-                <input class="tool-input" id="random-count" type="number" min="1" max="100" value="1">
-            </div>
-            <div class="tool-actions">
-                ${makeButton("Generate", "random-generate", true)}
-                ${makeButton("Copy output", "copy-output")}
-            </div>` +
-            makeOutput() +
-            `<div class="tool-message" id="tool-message" aria-live="polite"></div>`
-        ),
-
-        color: () => makePanel(
-            "Color Converter",
-            "Enter a HEX color to get its RGB and HSL values.",
-            `<div class="tool-form-group">
-                <label class="tool-label" for="color-input">HEX color</label>
-                <input class="tool-input" id="color-input" value="#ffffff" placeholder="#ffffff">
-            </div>
-            <div class="tool-actions">
-                ${makeButton("Convert color", "color-convert", true)}
-                ${makeButton("Random color", "color-random")}
-                ${makeButton("Copy output", "copy-output")}
-            </div>
-            <div id="color-preview" style="height:90px;border:1px solid var(--border);border-radius:8px;margin-top:16px;background:#ffffff"></div>` +
-            makeOutput() +
-            `<div class="tool-message" id="tool-message" aria-live="polite"></div>`
-        ),
-
-        gradient: () => makePanel(
-            "CSS Gradient Generator",
-            "Customize two colors and an angle, then generate CSS.",
-            `<div class="tool-form-group">
-                <label class="tool-label" for="gradient-a">First color</label>
-                <input class="tool-input" id="gradient-a" type="color" value="#111111">
-            </div>
-            <div class="tool-form-group">
-                <label class="tool-label" for="gradient-b">Second color</label>
-                <input class="tool-input" id="gradient-b" type="color" value="#777777">
-            </div>
-            <div class="tool-form-group">
-                <label class="tool-label" for="gradient-angle">Angle (degrees)</label>
-                <input class="tool-input" id="gradient-angle" type="number" min="0" max="360" value="135">
-            </div>
-            <div id="gradient-preview" style="height:140px;border:1px solid var(--border);border-radius:8px;background:linear-gradient(135deg,#111111,#777777)"></div>
-            <div class="tool-actions">
-                ${makeButton("Generate CSS", "gradient-generate", true)}
-                ${makeButton("Copy output", "copy-output")}
-            </div>` +
-            makeOutput()
-        ),
-
-        contrast: () => makePanel(
-            "Contrast Checker",
-            "Check contrast ratios for text and background colors against WCAG guidelines.",
-            `<div class="tool-form-group">
-                <label class="tool-label" for="contrast-fg">Text color</label>
-                <input class="tool-input" id="contrast-fg" type="color" value="#ffffff">
-            </div>
-            <div class="tool-form-group">
-                <label class="tool-label" for="contrast-bg">Background color</label>
-                <input class="tool-input" id="contrast-bg" type="color" value="#111111">
-            </div>
-            <div id="contrast-preview" style="padding:25px;text-align:center;border-radius:8px;background:#111111;color:#ffffff;border:1px solid var(--border)">Sample text preview</div>
-            <div class="tool-actions">
-                ${makeButton("Check contrast", "contrast-check", true)}
-            </div>` +
-            makeOutput()
-        ),
-
-        units: () => makePanel(
-            "Storage Unit Converter",
-            "Convert storage sizes using decimal (1000) or binary (1024) units.",
-            `<div class="tool-form-group">
-                <label class="tool-label" for="unit-value">Value</label>
-                <input class="tool-input" id="unit-value" type="number" min="0" value="1">
-            </div>
-            <div class="tool-form-group">
-                <label class="tool-label" for="unit-from">Convert from</label>
-                ${makeSelect("unit-from", [["B","Bytes"],["KB","KB"],["MB","MB"],["GB","GB"],["TB","TB"],["KiB","KiB"],["MiB","MiB"],["GiB","GiB"],["TiB","TiB"]])}
-            </div>
-            <div class="tool-form-group">
-                <label class="tool-label" for="unit-to">Convert to</label>
-                ${makeSelect("unit-to", [["B","Bytes"],["KB","KB"],["MB","MB"],["GB","GB"],["TB","TB"],["KiB","KiB"],["MiB","MiB"],["GiB","GiB"],["TiB","TiB"]])}
-            </div>
-            <div class="tool-actions">
-                ${makeButton("Convert", "units-convert", true)}
-                ${makeButton("Copy output", "copy-output")}
-            </div>` +
-            makeOutput()
-        ),
-
-        percentage: () => makePanel(
-            "Percentage Calculator",
-            "Calculate what a percentage of a number equals.",
-            `<div class="tool-form-group">
-                <label class="tool-label" for="percentage-rate">Percentage (%)</label>
-                <input class="tool-input" id="percentage-rate" type="number" value="15">
-            </div>
-            <div class="tool-form-group">
-                <label class="tool-label" for="percentage-number">Number</label>
-                <input class="tool-input" id="percentage-number" type="number" value="200">
-            </div>
-            <div class="tool-actions">
-                ${makeButton("Calculate", "percentage-calculate", true)}
-                ${makeButton("Copy output", "copy-output")}
-            </div>` +
-            makeOutput()
-        )
-    };
-
-    workspace.innerHTML = templates[tool.type]();
-    updateCounts();
-}
-
-
-/* ---------- OUTPUT HELPERS ---------- */
-
-function getOutputText() {
-    const output = $("#tool-output");
-    return output ? output.textContent : "";
-}
-
-async function copyOutput() {
-    const text = getOutputText();
-
-    if (!text) {
-        setMessage("tool-message", "There is no output to copy.", true);
-        return;
+    if (currentPage === "tool") {
+        updateWorkspaceFavorite();
     }
 
+    updateStats();
+}
+
+function addToRecent(id) {
+    recentTools = [
+        id,
+        ...recentTools.filter(item => item !== id)
+    ].slice(0, 12);
+
+    writeStorage(STORAGE_KEYS.recent, recentTools);
+    updateStats();
+}
+
+function updateStats() {
+    $("#total-tools").textContent = tools.length;
+    $("#favorite-count").textContent = favorites.length;
+    $("#recent-count").textContent = recentTools.length;
+}
+
+function updateWorkspaceFavorite() {
+    const button = $("#workspace-favorite");
+    const isFavorite = favorites.includes(currentToolId);
+
+    button.textContent = isFavorite ? "★" : "☆";
+    button.title = isFavorite
+        ? "Remove from favorites"
+        : "Add to favorites";
+
+    button.setAttribute(
+        "aria-label",
+        button.title
+    );
+
+    button.classList.toggle("is-favorite", isFavorite);
+}
+
+
+/* =========================================
+   OPEN TOOL WORKSPACE
+   ========================================= */
+
+function openTool(id) {
+    const tool = getTool(id);
+    if (!tool) return;
+
+    currentToolId = id;
+    addToRecent(id);
+
+    $("#workspace-icon").textContent = tool.icon;
+    $("#workspace-title").textContent = tool.name;
+    $("#workspace-description").textContent = tool.description;
+    $("#workspace-category").textContent =
+        categoryNames[tool.category].toUpperCase();
+
+    $("#tool-workspace").innerHTML = createToolInterface(tool);
+
+    updateWorkspaceFavorite();
+    showPage("tool");
+
+    $("#breadcrumb-current").textContent = tool.name;
+
+    const firstInput = $("#tool-workspace input, #tool-workspace textarea");
+
+    firstInput?.focus({ preventScroll: true });
+}
+
+function createToolInterface(tool) {
+    const header = `
+        <div class="tool-panel">
+            <div class="tool-panel-heading">
+                <div>
+                    <h2>${escapeHTML(tool.name)}</h2>
+                    <p>${escapeHTML(tool.description)}</p>
+                </div>
+            </div>
+    `;
+
+    const footer = `
+            <div class="tool-message" id="tool-message" role="status" aria-live="polite"></div>
+        </div>
+    `;
+
+    const interfaces = {
+        "json-format": `
+            ${textArea("tool-input", "Paste JSON here...", '{"name":"CtrlShift","tools":[1,2,3]}')}
+            <div class="button-row">
+                ${actionButton("Format JSON", "json-format")}
+                ${actionButton("Copy output", "copy-output", "secondary")}
+            </div>
+            ${outputArea()}
+        `,
+        "json-minify": `
+            ${textArea("tool-input", "Paste JSON here...", '{\n  "name": "CtrlShift",\n  "active": true\n}')}
+            <div class="button-row">
+                ${actionButton("Minify JSON", "json-minify")}
+                ${actionButton("Copy output", "copy-output", "secondary")}
+            </div>
+            ${outputArea()}
+        `,
+        "json-validate": `
+            ${textArea("tool-input", "Paste JSON to validate...", '{"valid": true}')}
+            <div class="button-row">
+                ${actionButton("Validate JSON", "json-validate")}
+            </div>
+            ${outputArea()}
+        `,
+        "regex-tester": `
+            ${textInput("regex-pattern", "Regular expression", "\\\\bcat\\\\b")}
+            ${textInput("regex-flags", "Flags (optional)", "gi")}
+            ${textArea("tool-input", "Text to test against...", "A cat and another cat.")}
+            <div class="button-row">
+                ${actionButton("Test expression", "regex-test")}
+            </div>
+            ${outputArea()}
+        `,
+        "text-case": `
+            ${textArea("tool-input", "Enter your text...", "Hello World from CtrlShift")}
+            <div class="button-row">
+                ${actionButton("UPPERCASE", "case-upper")}
+                ${actionButton("lowercase", "case-lower", "secondary")}
+                ${actionButton("Title Case", "case-title", "secondary")}
+                ${actionButton("Sentence case", "case-sentence", "secondary")}
+            </div>
+            ${outputArea()}
+        `,
+        "word-counter": `
+            ${textArea("tool-input", "Type or paste your text...", "Count the words and characters in this sentence.")}
+            <div class="button-row">
+                ${actionButton("Count text", "word-count")}
+            </div>
+            ${outputArea()}
+        `,
+        "duplicate-lines": `
+            ${textArea("tool-input", "Paste lines here...", "apple\\nbanana\\napple\\norange\\nbanana")}
+            <label class="option-label">
+                <input type="checkbox" id="ignore-case" checked>
+                Ignore case when comparing lines
+            </label>
+            <div class="button-row">
+                ${actionButton("Remove duplicates", "duplicate-lines")}
+            </div>
+            ${outputArea()}
+        `,
+        "text-reverse": `
+            ${textArea("tool-input", "Enter your text...", "Hello CtrlShift")}
+            <div class="button-row">
+                ${actionButton("Reverse characters", "reverse-characters")}
+                ${actionButton("Reverse words", "reverse-words", "secondary")}
+            </div>
+            ${outputArea()}
+        `,
+        "url-encoder": `
+            ${textArea("tool-input", "Enter text or an encoded URL component...", "hello world & welcome")}
+            <div class="button-row">
+                ${actionButton("Encode", "url-encode")}
+                ${actionButton("Decode", "url-decode", "secondary")}
+            </div>
+            ${outputArea()}
+        `,
+        "url-parser": `
+            ${textInput("url-input", "Enter a complete URL", "https://example.com:8080/path?q=hello#section")}
+            <div class="button-row">
+                ${actionButton("Parse URL", "url-parse")}
+            </div>
+            ${outputArea()}
+        `,
+        "html-entities": `
+            ${textArea("tool-input", "Enter HTML or text...", '<h1>Tom & Jerry</h1>')}
+            <div class="button-row">
+                ${actionButton("Encode entities", "html-encode")}
+                ${actionButton("Decode entities", "html-decode", "secondary")}
+            </div>
+            ${outputArea()}
+        `,
+        "timestamp": `
+            ${textInput("timestamp-input", "Unix timestamp in seconds or milliseconds", String(Math.floor(Date.now() / 1000)))}
+            <div class="button-row">
+                ${actionButton("Convert timestamp", "timestamp-to-date")}
+            </div>
+            ${outputArea()}
+            <div class="tool-divider"></div>
+            <label class="field-label" for="date-input">Or convert a date to Unix time</label>
+            <input class="tool-input" id="date-input" type="datetime-local">
+            <div class="button-row">
+                ${actionButton("Convert date", "date-to-timestamp")}
+            </div>
+            <div class="output-box" id="date-output" aria-live="polite"></div>
+        `,
+        "password-generate": `
+            <label class="field-label" for="password-length">Password length</label>
+            <input class="tool-input" id="password-length" type="number" min="4" max="128" value="20">
+            <div class="options-grid">
+                ${checkbox("password-lower", "Lowercase letters", true)}
+                ${checkbox("password-upper", "Uppercase letters", true)}
+                ${checkbox("password-numbers", "Numbers", true)}
+                ${checkbox("password-symbols", "Symbols", true)}
+            </div>
+            <div class="button-row">
+                ${actionButton("Generate password", "password-generate")}
+                ${actionButton("Copy output", "copy-output", "secondary")}
+            </div>
+            ${outputArea()}
+        `,
+        "uuid-generate": `
+            <label class="field-label" for="uuid-count">Number of UUIDs (1–50)</label>
+            <input class="tool-input" id="uuid-count" type="number" min="1" max="50" value="1">
+            <div class="button-row">
+                ${actionButton("Generate UUID", "uuid-generate")}
+                ${actionButton("Copy output", "copy-output", "secondary")}
+            </div>
+            ${outputArea()}
+        `,
+        "lorem-generate": `
+            <label class="field-label" for="lorem-count">Number of paragraphs (1–10)</label>
+            <input class="tool-input" id="lorem-count" type="number" min="1" max="10" value="3">
+            <div class="button-row">
+                ${actionButton("Generate text", "lorem-generate")}
+                ${actionButton("Copy output", "copy-output", "secondary")}
+            </div>
+            ${outputArea()}
+        `,
+        "percentage-calculate": `
+            ${textInput("percentage-rate", "Percentage (%)", "15", "number")}
+            ${textInput("percentage-number", "Number", "200", "number")}
+            <div class="button-row">
+                ${actionButton("Calculate", "percentage-calculate")}
+            </div>
+            ${outputArea()}
+        `,
+        "color-convert": `
+            ${textInput("color-input", "HEX color", "#8b5cf6")}
+            <div class="button-row">
+                ${actionButton("Convert color", "color-convert")}
+                ${actionButton("Copy output", "copy-output", "secondary")}
+            </div>
+            <div class="color-preview" id="color-preview"></div>
+            ${outputArea()}
+        `,
+        "color-random": `
+            <label class="field-label" for="random-color-count">Number of colors (1–20)</label>
+            <input class="tool-input" id="random-color-count" type="number" min="1" max="20" value="5">
+            <div class="button-row">
+                ${actionButton("Generate colors", "color-random")}
+                ${actionButton("Copy output", "copy-output", "secondary")}
+            </div>
+            <div class="color-swatches" id="color-swatches"></div>
+            ${outputArea()}
+        `,
+        "gradient-generate": `
+            ${textInput("gradient-color-one", "First color", "#8b5cf6")}
+            ${textInput("gradient-color-two", "Second color", "#111111")}
+            <label class="field-label" for="gradient-angle">Gradient angle</label>
+            <input class="tool-input" id="gradient-angle" type="number" min="0" max="360" value="135">
+            <div class="color-preview gradient-preview" id="gradient-preview"></div>
+            <div class="button-row">
+                ${actionButton("Generate gradient", "gradient-generate")}
+                ${actionButton("Copy output", "copy-output", "secondary")}
+            </div>
+            ${outputArea()}
+        `,
+        "color-contrast": `
+            ${textInput("contrast-foreground", "Foreground text color", "#ffffff")}
+            ${textInput("contrast-background", "Background color", "#111111")}
+            <div class="button-row">
+                ${actionButton("Check contrast", "color-contrast")}
+            </div>
+            <div class="contrast-preview" id="contrast-preview">Sample text preview</div>
+            ${outputArea()}
+        `
+    };
+
+    return header + (interfaces[tool.id] || "<p>Tool interface unavailable.</p>") + footer;
+}
+
+function textArea(id, placeholder, value = "") {
+    return `
+        <label class="field-label" for="${id}">Input</label>
+        <textarea class="tool-input tool-textarea" id="${id}" placeholder="${escapeHTML(placeholder)}" spellcheck="false">${escapeHTML(value)}</textarea>
+    `;
+}
+
+function textInput(id, label, value = "", type = "text") {
+    return `
+        <label class="field-label" for="${id}">${escapeHTML(label)}</label>
+        <input class="tool-input" id="${id}" type="${type}" value="${escapeHTML(value)}" autocomplete="off" spellcheck="false">
+    `;
+}
+
+function checkbox(id, label, checked = false) {
+    return `
+        <label class="option-label">
+            <input id="${id}" type="checkbox" ${checked ? "checked" : ""}>
+            ${escapeHTML(label)}
+        </label>
+    `;
+}
+
+function actionButton(label, action, style = "primary") {
+    return `
+        <button class="${style === "secondary" ? "secondary-button" : "primary-button"}"
+                type="button" data-action="${action}">
+            ${escapeHTML(label)}
+        </button>
+    `;
+}
+
+function outputArea() {
+    return `
+        <label class="field-label" for="tool-output">Output</label>
+        <pre class="output-box" id="tool-output" tabindex="0" aria-live="polite"></pre>
+    `;
+}
+
+
+/* =========================================
+   TOOL ACTION HANDLING
+   ========================================= */
+
+function bindGlobalClicks() {
+    document.addEventListener("click", event => {
+        const openButton = event.target.closest("[data-open-tool]");
+        if (openButton) {
+            openTool(openButton.dataset.openTool);
+            return;
+        }
+
+        const favoriteButton = event.target.closest("[data-favorite]");
+        if (favoriteButton) {
+            event.stopPropagation();
+            toggleFavorite(favoriteButton.dataset.favorite);
+            return;
+        }
+
+        const actionButtonElement = event.target.closest("[data-action]");
+        if (actionButtonElement) {
+            runAction(actionButtonElement.dataset.action);
+        }
+    });
+
+    $("#workspace-favorite").addEventListener("click", () => {
+        if (currentToolId) toggleFavorite(currentToolId);
+    });
+}
+
+function getInput(id) {
+    return $(`#${id}`, $("#tool-workspace"))?.value ?? "";
+}
+
+function getChecked(id) {
+    return $(`#${id}`, $("#tool-workspace"))?.checked ?? false;
+}
+
+function getOutput() {
+    return $("#tool-output", $("#tool-workspace"));
+}
+
+function setOutput(value) {
+    const output = getOutput();
+    if (output) output.textContent = String(value);
+}
+
+function setMessage(message, isError = false) {
+    const element = $("#tool-message", $("#tool-workspace"));
+    if (!element) return;
+
+    element.textContent = message;
+    element.classList.toggle("error", isError);
+}
+
+function requireInput(id, label = "Input") {
+    const value = getInput(id);
+
+    if (!value.trim()) {
+        throw new Error(`${label} cannot be empty.`);
+    }
+
+    return value;
+}
+
+async function runAction(action) {
     try {
-        await navigator.clipboard.writeText(text);
-        setMessage("tool-message", "Output copied to clipboard.");
-    } catch {
-        const temporary = document.createElement("textarea");
-        temporary.value = text;
-        temporary.style.position = "fixed";
-        temporary.style.opacity = "0";
+        setMessage("");
 
-        document.body.appendChild(temporary);
-        temporary.select();
+        if (action === "copy-output") {
+            const output = getOutput();
 
-        const success = document.execCommand("copy");
-        temporary.remove();
+            if (!output || !output.textContent.trim()) {
+                throw new Error("There is no output to copy yet.");
+            }
 
+            await copyText(output.textContent);
+            setMessage("Output copied to clipboard.");
+            return;
+        }
+
+        switch (action) {
+            case "json-format": {
+                const parsed = JSON.parse(requireInput("tool-input", "JSON"));
+                setOutput(JSON.stringify(parsed, null, 2));
+                break;
+            }
+
+            case "json-minify": {
+                const parsed = JSON.parse(requireInput("tool-input", "JSON"));
+                setOutput(JSON.stringify(parsed));
+                break;
+            }
+
+            case "json-validate": {
+                JSON.parse(requireInput("tool-input", "JSON"));
+                setOutput("Valid JSON ✓");
+                setMessage("Your JSON is valid.");
+                break;
+            }
+
+            case "regex-test": {
+                const pattern = requireInput("regex-pattern", "Regular expression");
+                const flags = getInput("regex-flags").trim();
+                const input = requireInput("tool-input", "Test text");
+                const regex = new RegExp(pattern, flags);
+                const matches = [...input.matchAll(
+                    new RegExp(regex.source, regex.flags.includes("g")
+                        ? regex.flags
+                        : regex.flags + "g")
+                )];
+
+                setOutput(
+                    matches.length
+                        ? `Found ${matches.length} match(es):\n\n` +
+                          matches.map((match, index) =>
+                              `${index + 1}. ${JSON.stringify(match[0])} — index ${match.index}`
+                          ).join("\n")
+                        : "No matches found."
+                );
+                break;
+            }
+
+            case "case-upper":
+                setOutput(requireInput("tool-input").toUpperCase());
+                break;
+
+            case "case-lower":
+                setOutput(requireInput("tool-input").toLowerCase());
+                break;
+
+            case "case-title": {
+                const input = requireInput("tool-input");
+                setOutput(input.toLowerCase().replace(/\b[\p{L}\p{N}]/gu, char => char.toUpperCase()));
+                break;
+            }
+
+            case "case-sentence": {
+                const input = requireInput("tool-input").toLowerCase();
+                setOutput(input.replace(/(^\s*\p{L}|[.!?]\s+\p{L})/gu, match => match.toUpperCase()));
+                break;
+            }
+
+            case "word-count": {
+                const input = requireInput("tool-input");
+                const words = input.trim().match(/\S+/g) || [];
+                const characters = [...input].length;
+                const noSpaces = [...input.replace(/\s/g, "")].length;
+                const lines = input ? input.split(/\r\n|\r|\n/).length : 0;
+                const sentences = input.trim()
+                    ? (input.trim().match(/[^.!?]+[.!?]*/g) || [])
+                        .filter(sentence => sentence.trim()).length
+                    : 0;
+
+                setOutput(
+                    `Words: ${words.length}\n` +
+                    `Characters: ${characters}\n` +
+                    `Characters (without whitespace): ${noSpaces}\n` +
+                    `Lines: ${lines}\n` +
+                    `Sentences: ${sentences}`
+                );
+                break;
+            }
+
+            case "duplicate-lines": {
+                const input = requireInput("tool-input");
+                const seen = new Set();
+                const ignoreCase = getChecked("ignore-case");
+
+                const result = input.split(/\r\n|\r|\n/).filter(line => {
+                    const key = ignoreCase ? line.toLowerCase() : line;
+
+                    if (seen.has(key)) return false;
+                    seen.add(key);
+                    return true;
+                });
+
+                setOutput(result.join("\n"));
+                setMessage(`${input.split(/\r\n|\r|\n/).length - result.length} duplicate line(s) removed.`);
+                break;
+            }
+
+            case "reverse-characters":
+                setOutput([...requireInput("tool-input")].reverse().join(""));
+                break;
+
+            case "reverse-words":
+                setOutput(requireInput("tool-input").trim().split(/\s+/).reverse().join(" "));
+                break;
+
+            case "url-encode":
+                setOutput(encodeURIComponent(requireInput("tool-input")));
+                break;
+
+            case "url-decode":
+                setOutput(decodeURIComponent(requireInput("tool-input")));
+                break;
+
+            case "url-parse": {
+                const url = new URL(requireInput("url-input", "URL"));
+
+                setOutput(
+                    `Protocol: ${url.protocol}\n` +
+                    `Hostname: ${url.hostname}\n` +
+                    `Port: ${url.port || "(default)"}\n` +
+                    `Pathname: ${url.pathname}\n` +
+                    `Search: ${url.search || "(none)"}\n` +
+                    `Hash: ${url.hash || "(none)"}\n` +
+                    `Origin: ${url.origin}`
+                );
+                break;
+            }
+
+            case "html-encode": {
+                const input = requireInput("tool-input");
+                const element = document.createElement("div");
+                element.textContent = input;
+                setOutput(element.innerHTML);
+                break;
+            }
+
+            case "html-decode": {
+                const input = requireInput("tool-input");
+                const element = document.createElement("textarea");
+                element.innerHTML = input;
+                setOutput(element.value);
+                break;
+            }
+
+            case "timestamp-to-date": {
+                const input = requireInput("timestamp-input", "Timestamp").trim();
+                const timestamp = Number(input);
+
+                if (!Number.isFinite(timestamp)) {
+                    throw new Error("Enter a valid Unix timestamp.");
+                }
+
+                const milliseconds = Math.abs(timestamp) < 1e12
+                    ? timestamp * 1000
+                    : timestamp;
+
+                const date = new Date(milliseconds);
+
+                if (Number.isNaN(date.getTime())) {
+                    throw new Error("That timestamp is outside the supported date range.");
+                }
+
+                setOutput(
+                    `UTC: ${date.toISOString()}\n` +
+                    `Local time: ${date.toLocaleString()}\n` +
+                    `Unix seconds: ${Math.floor(date.getTime() / 1000)}\n` +
+                    `Unix milliseconds: ${date.getTime()}`
+                );
+                break;
+            }
+
+            case "date-to-timestamp": {
+                const input = getInput("date-input");
+
+                if (!input) throw new Error("Choose a date and time first.");
+
+                const date = new Date(input);
+
+                if (Number.isNaN(date.getTime())) {
+                    throw new Error("Enter a valid date.");
+                }
+
+                $("#date-output").textContent =
+                    `Unix seconds: ${Math.floor(date.getTime() / 1000)}\n` +
+                    `Unix milliseconds: ${date.getTime()}\n` +
+                    `UTC: ${date.toISOString()}`;
+                break;
+            }
+
+            case "password-generate": {
+                const length = readInteger("password-length", 20, 4, 128);
+
+                let characters = "";
+
+                if (getChecked("password-lower")) characters += "abcdefghijklmnopqrstuvwxyz";
+                if (getChecked("password-upper")) characters += "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+                if (getChecked("password-numbers")) characters += "0123456789";
+                if (getChecked("password-symbols")) characters += "!@#$%^&*()-_=+[]{};:,.?";
+
+                if (!characters) {
+                    throw new Error("Select at least one character type.");
+                }
+
+                const randomValues = new Uint32Array(length);
+                crypto.getRandomValues(randomValues);
+
+                let password = "";
+
+                for (const value of randomValues) {
+                    password += characters[value % characters.length];
+                }
+
+                setOutput(password);
+                break;
+            }
+
+            case "uuid-generate": {
+                const count = readInteger("uuid-count", 1, 1, 50);
+                const values = [];
+
+                for (let i = 0; i < count; i++) {
+                    if (crypto.randomUUID) {
+                        values.push(crypto.randomUUID());
+                    } else {
+                        values.push(createUUID());
+                    }
+                }
+
+                setOutput(values.join("\n"));
+                break;
+            }
+
+            case "lorem-generate": {
+                const count = readInteger("lorem-count", 3, 1, 10);
+                const sample = "Lorem ipsum dolor sit amet, consectetur adipiscing elit. " +
+                    "Integer posuere erat a ante venenatis dapibus posuere velit aliquet. " +
+                    "Donec ullamcorper nulla non metus auctor fringilla. " +
+                    "Vestibulum id ligula porta felis euismod semper.";
+
+                const paragraphs = [];
+
+                for (let i = 0; i < count; i++) {
+                    paragraphs.push(sample);
+                }
+
+                setOutput(paragraphs.join("\n\n"));
+                break;
+            }
+
+            case "percentage-calculate": {
+                const rateText = getInput("percentage-rate").trim();
+                const numberText = getInput("percentage-number").trim();
+                const rate = Number(rateText);
+                const number = Number(numberText);
+
+                if (
+                    rateText === "" ||
+                    numberText === "" ||
+                    !Number.isFinite(rate) ||
+                    !Number.isFinite(number)
+                ) {
+                    throw new Error("Enter valid numbers.");
+                }
+
+                setOutput(
+                    `${rate}% of ${number} = ${(rate / 100 * number).toLocaleString()}`
+                );
+                break;
+            }
+
+            case "color-convert": {
+                const hex = normalizeHex(requireInput("color-input", "HEX color"));
+                const rgb = hexToRgb(hex);
+                const hsl = rgbToHsl(rgb.r, rgb.g, rgb.b);
+
+                $("#color-preview").style.backgroundColor = hex;
+
+                setOutput(
+                    `HEX: ${hex}\n` +
+                    `RGB: rgb(${rgb.r}, ${rgb.g}, ${rgb.b})\n` +
+                    `HSL: hsl(${hsl.h}, ${hsl.s}%, ${hsl.l}%)`
+                );
+                break;
+            }
+
+            case "color-random": {
+                const count = readInteger("random-color-count", 5, 1, 20);
+                const colors = [];
+
+                for (let i = 0; i < count; i++) {
+                    colors.push("#" + Math.floor(Math.random() * 0x1000000)
+                        .toString(16).padStart(6, "0"));
+                }
+
+                $("#color-swatches").innerHTML = colors.map(color => `
+                    <button type="button" class="color-swatch" data-copy-color="${color}"
+                            style="background-color:${color}" title="Copy ${color}">
+                        <span>${color}</span>
+                    </button>
+                `).join("");
+
+                setOutput(colors.join("\n"));
+                break;
+            }
+
+            case "gradient-generate": {
+                const first = normalizeHex(requireInput("gradient-color-one", "First color"));
+                const second = normalizeHex(requireInput("gradient-color-two", "Second color"));
+                const angle = readInteger("gradient-angle", 135, 0, 360);
+                const css = `linear-gradient(${angle}deg, ${first}, ${second})`;
+
+                $("#gradient-preview").style.background = css;
+                setOutput(`background: ${css};`);
+                break;
+            }
+
+            case "color-contrast": {
+                const foreground = normalizeHex(requireInput("contrast-foreground", "Foreground color"));
+                const background = normalizeHex(requireInput("contrast-background", "Background color"));
+
+                const ratio = contrastRatio(hexToRgb(foreground), hexToRgb(background));
+                const rounded = ratio.toFixed(2);
+
+                const normalAA = ratio >= 4.5;
+                const largeAA = ratio >= 3;
+                const normalAAA = ratio >= 7;
+
+                const preview = $("#contrast-preview");
+                preview.style.color = foreground;
+                preview.style.backgroundColor = background;
+
+                setOutput(
+                    `Contrast ratio: ${rounded}:1\n\n` +
+                    `WCAG AA normal text: ${normalAA ? "PASS" : "FAIL"} (4.5:1 required)\n` +
+                    `WCAG AA large text: ${largeAA ? "PASS" : "FAIL"} (3:1 required)\n` +
+                    `WCAG AAA normal text: ${normalAAA ? "PASS" : "FAIL"} (7:1 required)`
+                );
+                break;
+            }
+
+            default:
+                throw new Error("Unknown tool action.");
+        }
+
+        if (!["json-validate"].includes(action)) {
+            setMessage("Done.");
+        }
+    } catch (error) {
+        setOutput("");
         setMessage(
-            "tool-message",
-            success ? "Output copied to clipboard." :
-                "Copy failed. Select and copy the output manually.",
-            !success
+            error instanceof Error ? error.message : "Something went wrong.",
+            true
         );
     }
 }
 
-function clearInput() {
-    const input = $("#text-input") || $("#json-input");
 
-    if (input) input.value = "";
+/* =========================================
+   VALIDATION AND COLOR HELPERS
+   ========================================= */
 
-    const output = $("#tool-output");
-    if (output) output.textContent = "";
+function readInteger(id, fallback, min, max) {
+    const text = getInput(id).trim();
+    const value = text === "" ? fallback : Number(text);
 
-    setMessage("tool-message", "");
+    if (!Number.isInteger(value) || value < min || value > max) {
+        throw new Error(`Enter a whole number from ${min} to ${max}.`);
+    }
+
+    return value;
 }
 
+function normalizeHex(value) {
+    let hex = value.trim();
 
-/* ---------- HTML ENTITIES ---------- */
+    if (!hex.startsWith("#")) hex = "#" + hex;
 
-function encodeEntities(text) {
-    return text.replace(/[&<>"']/g, char => ({
-        "&": "&amp;",
-        "<": "&lt;",
-        ">": "&gt;",
-        '"': "&quot;",
-        "'": "&#39;"
-    })[char]);
+    if (/^#[0-9a-f]{3}$/i.test(hex)) {
+        hex = "#" + [...hex.slice(1)].map(char => char + char).join("");
+    }
+
+    if (!/^#[0-9a-f]{6}$/i.test(hex)) {
+        throw new Error("Enter a valid HEX color, such as #8b5cf6.");
+    }
+
+    return hex.toLowerCase();
 }
 
-function decodeEntities(text) {
-    const textarea = document.createElement("textarea");
-    textarea.innerHTML = text;
-    return textarea.value;
-}
-
-
-/* ---------- TEXT CASE CONVERSION ---------- */
-
-function wordsFromText(text) {
-    return text
-        .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
-        .replace(/([A-Z])([A-Z][a-z])/g, "$1 $2")
-        .match(/[\p{L}\p{N}]+/gu) || [];
-}
-
-function convertCase(text, type) {
-    const words = wordsFromText(text);
-    const lower = words.map(word => word.toLowerCase());
-
-    switch (type) {
-        case "upper":
-            return text.toUpperCase();
-
-        case "lower":
-            return text.toLowerCase();
-
-        case "title":
-            return text.replace(/\b[\p{L}\p{N}]+/gu, word =>
-                word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
-            );
-
-        case "sentence":
-            return text.toLowerCase().replace(
-                /(^\s*\p{L}|[.!?]\s+\p{L})/gu,
-                match => match.toUpperCase()
-            );
-
-        case "camel":
-            return lower.map((word, index) =>
-                index === 0 ? word :
-                    word.charAt(0).toUpperCase() + word.slice(1)
-            ).join("");
-
-        case "pascal":
-            return lower.map(word =>
-                word.charAt(0).toUpperCase() + word.slice(1)
-            ).join("");
-
-        case "snake":
-            return lower.join("_");
-
-        case "kebab":
-            return lower.join("-");
-
-        default:
-            return text;
-    }
-}
-
-
-/* ---------- RANDOMNESS ---------- */
-
-function secureRandomInt(min, max) {
-    if (!Number.isSafeInteger(min) || !Number.isSafeInteger(max)) {
-        throw new Error("Please enter valid whole numbers.");
-    }
-
-    if (max < min) {
-        throw new Error("Maximum must be at least the minimum.");
-    }
-
-    if (min === max) return min;
-
-    const range = max - min + 1;
-
-    if (!Number.isSafeInteger(range) || range <= 0) {
-        throw new Error("The requested range is too large.");
-    }
-
-    const limit = Math.floor(4294967296 / range) * range;
-    const array = new Uint32Array(1);
-
-    do {
-        crypto.getRandomValues(array);
-    } while (array[0] >= limit);
-
-    return min + (array[0] % range);
-}
-
-function secureRandomString(characters, length) {
-    if (!characters.length) {
-        throw new Error("Select at least one character type.");
-    }
-
-    const chars = [...characters];
-    const output = [];
-
-    for (let i = 0; i < length; i++) {
-        output.push(chars[secureRandomInt(0, chars.length - 1)]);
-    }
-
-    return output.join("");
-}
-
-function createUUID() {
-    if (crypto.randomUUID) {
-        return crypto.randomUUID();
-    }
-
-    const bytes = new Uint8Array(16);
-    crypto.getRandomValues(bytes);
-
-    bytes[6] = (bytes[6] & 0x0f) | 0x40;
-    bytes[8] = (bytes[8] & 0x3f) | 0x80;
-
-    const hex = [...bytes].map(byte =>
-        byte.toString(16).padStart(2, "0")
-    ).join("");
-
-    return [
-        hex.slice(0, 8),
-        hex.slice(8, 12),
-        hex.slice(12, 16),
-        hex.slice(16, 20),
-        hex.slice(20)
-    ].join("-");
-}
-
-
-/* ---------- COLOR HELPERS ---------- */
-
-function parseHex(hex) {
-    let value = hex.trim().replace(/^#/, "");
-
-    if (/^[0-9a-f]{3}$/i.test(value)) {
-        value = value.split("").map(char => char + char).join("");
-    }
-
-    if (!/^[0-9a-f]{6}$/i.test(value)) {
-        throw new Error("Enter a valid HEX color, such as #ffffff.");
-    }
+function hexToRgb(hex) {
+    const clean = normalizeHex(hex).slice(1);
 
     return {
-        r: parseInt(value.slice(0, 2), 16),
-        g: parseInt(value.slice(2, 4), 16),
-        b: parseInt(value.slice(4, 6), 16)
+        r: parseInt(clean.slice(0, 2), 16),
+        g: parseInt(clean.slice(2, 4), 16),
+        b: parseInt(clean.slice(4, 6), 16)
     };
 }
 
@@ -1130,18 +1343,17 @@ function rgbToHsl(r, g, b) {
 
         switch (max) {
             case r:
-                h = ((g - b) / delta) % 6;
+                h = 60 * (((g - b) / delta) % 6);
                 break;
             case g:
-                h = (b - r) / delta + 2;
+                h = 60 * ((b - r) / delta + 2);
                 break;
             default:
-                h = (r - g) / delta + 4;
+                h = 60 * ((r - g) / delta + 4);
         }
-
-        h *= 60;
-        if (h < 0) h += 360;
     }
+
+    if (h < 0) h += 360;
 
     return {
         h: Math.round(h),
@@ -1150,516 +1362,168 @@ function rgbToHsl(r, g, b) {
     };
 }
 
-function linearizeColor(value) {
-    value /= 255;
+function luminance(rgb) {
+    const channels = [rgb.r, rgb.g, rgb.b].map(value => {
+        const channel = value / 255;
 
-    return value <= 0.04045
-        ? value / 12.92
-        : Math.pow((value + 0.055) / 1.055, 2.4);
+        return channel <= 0.04045
+            ? channel / 12.92
+            : ((channel + 0.055) / 1.055) ** 2.4;
+    });
+
+    return 0.2126 * channels[0] +
+        0.7152 * channels[1] +
+        0.0722 * channels[2];
 }
 
-function luminance({ r, g, b }) {
-    return (
-        0.2126 * linearizeColor(r) +
-        0.7152 * linearizeColor(g) +
-        0.0722 * linearizeColor(b)
-    );
+function contrastRatio(first, second) {
+    const firstLuminance = luminance(first);
+    const secondLuminance = luminance(second);
+
+    const lighter = Math.max(firstLuminance, secondLuminance);
+    const darker = Math.min(firstLuminance, secondLuminance);
+
+    return (lighter + 0.05) / (darker + 0.05);
+}
+
+function createUUID() {
+    return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, char => {
+        const random = crypto.getRandomValues(new Uint8Array(1))[0] % 16;
+        const value = char === "x" ? random : (random & 0x3) | 0x8;
+
+        return value.toString(16);
+    });
 }
 
 
-/* ---------- MAIN TOOL ACTIONS ---------- */
+/* =========================================
+   CLIPBOARD
+   ========================================= */
 
-function runAction(action) {
-    const input = getInput("text-input");
-    const output = $("#tool-output");
+async function copyText(text) {
+    try {
+        await navigator.clipboard.writeText(text);
+    } catch {
+        // Fallback for pages where Clipboard API is unavailable.
+        const temporary = document.createElement("textarea");
 
-    if (!output && action !== "clear-input") return;
+        temporary.value = text;
+        temporary.style.position = "fixed";
+        temporary.style.opacity = "0";
+
+        document.body.appendChild(temporary);
+        temporary.select();
+
+        const copied = document.execCommand("copy");
+        temporary.remove();
+
+        if (!copied) {
+            throw new Error("Clipboard access failed. Select and copy the output manually.");
+        }
+    }
+}
+
+
+/* =========================================
+   THEME
+   ========================================= */
+
+function applySavedTheme() {
+    let theme = "dark";
 
     try {
-        switch (action) {
-
-            case "json-format":
-            case "json-minify":
-            case "json-validate": {
-                const value = JSON.parse(getInput("json-input"));
-
-                if (action === "json-validate") {
-                    output.textContent = "Valid JSON.";
-                } else {
-                    output.textContent = action === "json-minify"
-                        ? JSON.stringify(value)
-                        : JSON.stringify(value, null, 2);
-                }
-
-                setMessage("tool-message", "JSON is valid.");
-                break;
-            }
-
-            case "html-encode":
-                output.textContent = encodeEntities(input);
-                break;
-
-            case "html-decode":
-                output.textContent = decodeEntities(input);
-                break;
-
-            case "number-base": {
-                const base = Number(getInput("base-from"));
-                const raw = getInput("base-input").trim();
-
-                const prefixes = {
-                    2: /^-?0b/i,
-                    8: /^-?0o/i,
-                    16: /^-?0x/i
-                };
-
-                const clean = raw.replace(/_/g, "");
-
-                if (!clean) throw new Error("Enter a number.");
-
-                const sign = clean.startsWith("-") ? -1 : 1;
-                let digits = clean.replace(/^[+-]/, "");
-
-                if (prefixes[base]) {
-                    digits = digits.replace(prefixes[base], "");
-                }
-
-                const valid = {
-                    2: /^[01]+$/,
-                    8: /^[0-7]+$/,
-                    10: /^\d+$/,
-                    16: /^[0-9a-f]+$/i
-                };
-
-                if (!valid[base].test(digits)) {
-                    throw new Error("The number contains digits invalid for its base.");
-                }
-
-                const value = sign * parseInt(digits, base);
-
-                if (!Number.isSafeInteger(value)) {
-                    throw new Error("Number is outside the safe integer range.");
-                }
-
-                output.textContent =
-                    `Decimal: ${value}\n` +
-                    `Binary: ${value.toString(2)}\n` +
-                    `Octal: ${value.toString(8)}\n` +
-                    `Hexadecimal: ${value.toString(16).toUpperCase()}`;
-
-                break;
-            }
-
-            case "text-case":
-                output.textContent = convertCase(
-                    input,
-                    getInput("case-type")
-                );
-                break;
-
-            case "text-stats": {
-                const words = input.trim()
-                    ? input.trim().split(/\s+/u).length
-                    : 0;
-
-                const characters = [...input].length;
-                const noSpaces = [...input.replace(/\s/g, "")].length;
-                const lines = input.length ? input.split(/\r\n|\r|\n/).length : 0;
-
-                const sentences = input.trim()
-                    ? (input.match(/[.!?]+(?=\s|$)/g) || []).length
-                    : 0;
-
-                output.textContent =
-                    `Words: ${words}\n` +
-                    `Characters: ${characters}\n` +
-                    `Characters without whitespace: ${noSpaces}\n` +
-                    `Lines: ${lines}\n` +
-                    `Sentences (approximate): ${sentences}`;
-
-                break;
-            }
-
-            case "duplicate-lines": {
-                const lines = input.split(/\r\n|\r|\n/);
-                const seen = new Set();
-
-                const unique = lines.filter(line => {
-                    if (seen.has(line)) return false;
-                    seen.add(line);
-                    return true;
-                });
-
-                output.textContent = unique.join("\n");
-                setMessage(
-                    "tool-message",
-                    `Removed ${lines.length - unique.length} duplicate line(s).`
-                );
-                break;
-            }
-
-            case "find-replace": {
-                const find = getInput("find-input");
-                const replacement = getInput("replace-input");
-
-                if (!find) throw new Error("Enter text to find.");
-
-                output.textContent = input.split(find).join(replacement);
-                break;
-            }
-
-            case "base64-encode":
-                output.textContent = btoa(
-                    Array.from(new TextEncoder().encode(input))
-                        .map(byte => String.fromCharCode(byte))
-                        .join("")
-                );
-                break;
-
-            case "base64-decode": {
-                const binary = atob(input.trim());
-                const bytes = Uint8Array.from(
-                    binary,
-                    character => character.charCodeAt(0)
-                );
-
-                output.textContent = new TextDecoder("utf-8", {
-                    fatal: true
-                }).decode(bytes);
-
-                break;
-            }
-
-            case "url-encode":
-                output.textContent = encodeURIComponent(input);
-                break;
-
-            case "url-decode":
-                output.textContent = decodeURIComponent(input);
-                break;
-
-            case "query-parse": {
-                let url;
-
-                try {
-                    url = new URL(input.trim());
-                } catch {
-                    url = new URL(
-                        "https://local.invalid/?" +
-                        input.trim().replace(/^[?&]/, "")
-                    );
-                }
-
-                const entries = [...url.searchParams.entries()];
-
-                output.textContent = entries.length
-                    ? entries.map(([key, value]) =>
-                        `${key}: ${value}`
-                    ).join("\n")
-                    : "No query parameters found.";
-
-                break;
-            }
-
-            case "timestamp-date": {
-                const raw = getInput("timestamp-input").trim();
-                if (!raw) throw new Error("Enter a timestamp or date.");
-
-                const date = /^\d+$/.test(raw)
-                    ? new Date(Number(raw) * (raw.length <= 10 ? 1000 : 1))
-                    : new Date(raw);
-
-                if (Number.isNaN(date.getTime())) {
-                    throw new Error("Enter a valid timestamp or date.");
-                }
-
-                output.textContent =
-                    `UTC: ${date.toISOString()}\n` +
-                    `Local time: ${date.toString()}\n` +
-                    `Unix seconds: ${Math.floor(date.getTime() / 1000)}\n` +
-                    `Unix milliseconds: ${date.getTime()}`;
-
-                break;
-            }
-
-            case "timestamp-now": {
-                const now = new Date();
-
-                output.textContent =
-                    `UTC: ${now.toISOString()}\n` +
-                    `Local time: ${now.toString()}\n` +
-                    `Unix seconds: ${Math.floor(now.getTime() / 1000)}\n` +
-                    `Unix milliseconds: ${now.getTime()}`;
-
-                break;
-            }
-
-            case "password-generate": {
-                const length = Number(getInput("password-length"));
-
-                if (!Number.isInteger(length) || length < 8 || length > 128) {
-                    throw new Error("Choose a length between 8 and 128.");
-                }
-
-                let characters = "";
-
-                if ($("#password-upper").checked) characters += "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-                if ($("#password-lower").checked) characters += "abcdefghijklmnopqrstuvwxyz";
-                if ($("#password-numbers").checked) characters += "0123456789";
-                if ($("#password-symbols").checked) characters += "!@#$%^&*()-_=+[]{};:,.?";
-
-                if (!characters) {
-                    throw new Error("Select at least one character type.");
-                }
-
-                // Ensure at least one character from each selected category.
-                const groups = [];
-
-                if ($("#password-upper").checked) groups.push("ABCDEFGHIJKLMNOPQRSTUVWXYZ");
-                if ($("#password-lower").checked) groups.push("abcdefghijklmnopqrstuvwxyz");
-                if ($("#password-numbers").checked) groups.push("0123456789");
-                if ($("#password-symbols").checked) groups.push("!@#$%^&*()-_=+[]{};:,.?");
-
-                if (length < groups.length) {
-                    throw new Error("Increase the length to include every selected character type.");
-                }
-
-                const password = groups.map(group =>
-                    group[secureRandomInt(0, group.length - 1)]
-                );
-
-                while (password.length < length) {
-                    password.push(
-                        characters[secureRandomInt(0, characters.length - 1)]
-                    );
-                }
-
-                // Shuffle the generated characters using cryptographic randomness.
-                for (let i = password.length - 1; i > 0; i--) {
-                    const j = secureRandomInt(0, i);
-                    [password[i], password[j]] = [password[j], password[i]];
-                }
-
-                output.textContent = password.join("");
-                setMessage("tool-message", "Generated locally. Copy it before leaving this page.");
-                break;
-            }
-
-            case "uuid-generate":
-                output.textContent = createUUID();
-                break;
-
-            case "uuid-batch":
-                output.textContent = Array.from(
-                    { length: 10 },
-                    createUUID
-                ).join("\n");
-                break;
-
-            case "lorem-generate": {
-                const count = Number(getInput("lorem-count"));
-
-                if (!Number.isInteger(count) || count < 1 || count > 20) {
-                    throw new Error("Choose between 1 and 20 paragraphs.");
-                }
-
-                const sample = (
-                    "Lorem ipsum dolor sit amet, consectetur adipiscing elit. " +
-                    "Integer vitae justo sed nibh facilisis tincidunt. " +
-                    "Donec euismod, neque at interdum feugiat, lectus sapien " +
-                    "aliquet libero, sit amet aliquet nulla mauris id nisl. " +
-                    "Vivamus non erat sed ipsum finibus tristique. " +
-                    "Curabitur at ligula vel neque malesuada pellentesque."
-                );
-
-                output.textContent = Array.from(
-                    { length: count },
-                    () => sample
-                ).join("\n\n");
-
-                break;
-            }
-
-            case "random-generate": {
-                const min = Number(getInput("random-min"));
-                const max = Number(getInput("random-max"));
-                const count = Number(getInput("random-count"));
-
-                if (!Number.isInteger(count) || count < 1 || count > 100) {
-                    throw new Error("Choose between 1 and 100 results.");
-                }
-
-                output.textContent = Array.from(
-                    { length: count },
-                    () => secureRandomInt(min, max)
-                ).join("\n");
-
-                break;
-            }
-
-            case "color-convert":
-            case "color-random": {
-                let hex = getInput("color-input").trim();
-
-                if (action === "color-random") {
-                    const bytes = new Uint8Array(3);
-                    crypto.getRandomValues(bytes);
-
-                    hex = "#" + [...bytes]
-                        .map(value => value.toString(16).padStart(2, "0"))
-                        .join("");
-
-                    $("#color-input").value = hex;
-                }
-
-                const rgb = parseHex(hex);
-                const hsl = rgbToHsl(rgb.r, rgb.g, rgb.b);
-
-                output.textContent =
-                    `HEX: #${[rgb.r, rgb.g, rgb.b].map(value =>
-                        value.toString(16).padStart(2, "0")
-                    ).join("")}\n` +
-                    `RGB: rgb(${rgb.r}, ${rgb.g}, ${rgb.b})\n` +
-                    `HSL: hsl(${hsl.h}, ${hsl.s}%, ${hsl.l}%)`;
-
-                $("#color-preview").style.background = hex;
-                break;
-            }
-
-            case "gradient-generate": {
-                const a = getInput("gradient-a");
-                const b = getInput("gradient-b");
-                const angle = Number(getInput("gradient-angle"));
-
-                if (!Number.isFinite(angle) || angle < 0 || angle > 360) {
-                    throw new Error("Angle must be between 0 and 360.");
-                }
-
-                const css = `linear-gradient(${angle}deg, ${a}, ${b})`;
-
-                $("#gradient-preview").style.background = css;
-                output.textContent = `background: ${css};`;
-
-                break;
-            }
-
-            case "contrast-check": {
-                const fg = parseHex(getInput("contrast-fg"));
-                const bg = parseHex(getInput("contrast-bg"));
-
-                const L1 = luminance(fg);
-                const L2 = luminance(bg);
-
-                const ratio =
-                    (Math.max(L1, L2) + 0.05) /
-                    (Math.min(L1, L2) + 0.05);
-
-                const normal = ratio >= 4.5;
-                const large = ratio >= 3;
-                const enhanced = ratio >= 7;
-
-                const preview = $("#contrast-preview");
-                preview.style.color = getInput("contrast-fg");
-                preview.style.background = getInput("contrast-bg");
-
-                output.textContent =
-                    `Contrast ratio: ${ratio.toFixed(2)}:1\n` +
-                    `WCAG AA — normal text (4.5:1): ${normal ? "PASS" : "FAIL"}\n` +
-                    `WCAG AA — large text (3:1): ${large ? "PASS" : "FAIL"}\n` +
-                    `WCAG AAA — normal text (7:1): ${enhanced ? "PASS" : "FAIL"}`;
-
-                break;
-            }
-
-            case "units-convert": {
-                const value = Number(getInput("unit-value"));
-                const from = getInput("unit-from");
-                const to = getInput("unit-to");
-
-                const decimal = {
-                    B: 1,
-                    KB: 1000,
-                    MB: 1000 ** 2,
-                    GB: 1000 ** 3,
-                    TB: 1000 ** 4
-                };
-
-                const binary = {
-                    KiB: 1024,
-                    MiB: 1024 ** 2,
-                    GiB: 1024 ** 3,
-                    TiB: 1024 ** 4
-                };
-
-                const factors = { ...decimal, ...binary };
-
-                if (!Number.isFinite(value) || value < 0) {
-                    throw new Error("Enter a non-negative valid number.");
-                }
-
-                const result = value * factors[from] / factors[to];
-
-                output.textContent =
-                    `${value} ${from} = ${Number(result.toPrecision(12))} ${to}\n\n` +
-                    "KB, MB, GB and TB use powers of 1000.\n" +
-                    "KiB, MiB, GiB and TiB use powers of 1024.";
-
-                break;
-            }
-
-            case "percentage-calculate": {
-                const rate = Number(getInput("percentage-rate"));
-                const number = Number(getInput("percentage-number"));
-
-                if (!Number.isFinite(rate) || !Number.isFinite(number)) {
-                    throw new Error("Enter valid numbers.");
-                }
-
-                output.textContent =
-                    `${
-            case "percentage-calculate": {
-                const rate = Number(getInput("percentage-rate"));
-                const number = Number(getInput("percentage-number"));
-
-                if (
-                    getInput("percentage-rate").trim() === "" ||
-                    getInput("percentage-number").trim() === "" ||
-                    !Number.isFinite(rate) ||
-                    !Number.isFinite(number)
-                ) {
-                    throw new Error("Enter valid numbers.");
-                }
-
-                output.textContent =
-                    `${rate}% of ${number} = ${(rate / 100 * number).toLocaleString()}`;
-
-                break;
-            }
-
-            default:
-                throw new Error("Unknown tool action.");
-        }
-
-        if (
-            ![
-                "json-format",
-                "json-minify",
-                "json-validate",
-                "password-generate",
-                "duplicate-lines",
-                "query-parse",
-                "color-convert",
-                "color-random"
-            ].includes(action)
-        ) {
-            setMessage("tool-message", "");
-        }
-    } catch (error) {
-        output.textContent = "";
-        setMessage(
-            "tool-message",
-            error instanceof Error ? error.message : "Something went wrong.",
-            true
-        );
+        theme = localStorage.getItem(STORAGE_KEYS.theme) || "dark";
+    } catch {
+        // Use the default theme if storage is unavailable.
     }
+
+    document.documentElement.dataset.theme = theme;
+    document.body.dataset.theme = theme;
+    updateThemeButton(theme);
+}
+
+function bindThemeToggle() {
+    $("#theme-toggle").addEventListener("click", () => {
+        const current = document.documentElement.dataset.theme || "dark";
+        const next = current === "dark" ? "light" : "dark";
+
+        document.documentElement.dataset.theme = next;
+        document.body.dataset.theme = next;
+
+        try {
+            localStorage.setItem(STORAGE_KEYS.theme, next);
+        } catch {
+            // Theme still changes for this page view.
+        }
+
+        updateThemeButton(next);
+    });
+}
+
+function updateThemeButton(theme) {
+    const button = $("#theme-toggle");
+
+    button.textContent = theme === "dark" ? "☼" : "◐";
+    button.title = theme === "dark"
+        ? "Switch to light theme"
+        : "Switch to dark theme";
+}
+
+
+/* =========================================
+   SIDEBAR AND KEYBOARD SHORTCUTS
+   ========================================= */
+
+function bindSidebar() {
+    $("#menu-toggle").addEventListener("click", () => {
+        const sidebar = $("#sidebar");
+        const isOpen = sidebar.classList.toggle("open");
+
+        $("#menu-toggle").setAttribute("aria-expanded", String(isOpen));
+    });
+}
+
+function closeSidebar() {
+    $("#sidebar").classList.remove("open");
+    $("#menu-toggle").setAttribute("aria-expanded", "false");
+}
+
+function bindKeyboardShortcuts() {
+    document.addEventListener("keydown", event => {
+        const tag = document.activeElement?.tagName?.toLowerCase();
+        const typing = tag === "input" || tag === "textarea" ||
+            document.activeElement?.isContentEditable;
+
+        if (event.key === "/" && !typing) {
+            event.preventDefault();
+            $("#tool-search").focus();
+        }
+
+        if (event.key === "Escape") {
+            closeSidebar();
+
+            if (currentPage === "tool") {
+                showPage("dashboard");
+            }
+        }
+    });
+}
+
+
+/* =========================================
+   GENERAL HELPERS
+   ========================================= */
+
+function getTool(id) {
+    return tools.find(tool => tool.id === id);
+}
+
+function escapeHTML(value) {
+    return String(value).replace(/[&<>"']/g, char => ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#39;"
+    })[char]);
 }
