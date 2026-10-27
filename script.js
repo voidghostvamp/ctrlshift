@@ -1617,3 +1617,49 @@ function runAction(action) {
 
                 output.textContent =
                     `${
+            case "percentage-calculate": {
+                const rate = Number(getInput("percentage-rate"));
+                const number = Number(getInput("percentage-number"));
+
+                if (
+                    getInput("percentage-rate").trim() === "" ||
+                    getInput("percentage-number").trim() === "" ||
+                    !Number.isFinite(rate) ||
+                    !Number.isFinite(number)
+                ) {
+                    throw new Error("Enter valid numbers.");
+                }
+
+                output.textContent =
+                    `${rate}% of ${number} = ${(rate / 100 * number).toLocaleString()}`;
+
+                break;
+            }
+
+            default:
+                throw new Error("Unknown tool action.");
+        }
+
+        if (
+            ![
+                "json-format",
+                "json-minify",
+                "json-validate",
+                "password-generate",
+                "duplicate-lines",
+                "query-parse",
+                "color-convert",
+                "color-random"
+            ].includes(action)
+        ) {
+            setMessage("tool-message", "");
+        }
+    } catch (error) {
+        output.textContent = "";
+        setMessage(
+            "tool-message",
+            error instanceof Error ? error.message : "Something went wrong.",
+            true
+        );
+    }
+}
