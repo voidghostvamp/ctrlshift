@@ -1,0 +1,31 @@
+
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <rect width="64" height="64" rx="12" fill="#fff"/>
+
+  <path d="M26 20
+           A13 13 0 1 0 26 44"
+        fill="none"
+        stroke="#000"
+        stroke-width="5"
+        stroke-linecap="square"/>
+
+  <path d="M50 23
+           C47 20 44 19 40 20
+           C35 21 33 24 34 28
+           C35 32 45 32 48 36
+           C51 41 46 45 40 45
+           C37 45 34 44 32 42"
+        fill="none"
+        stroke="#000"
+        stroke-width="4"
+        stroke-linecap="square"
+        stroke-linejoin="miter"/>
+
+  <path d="M45 8 L56 8 L56 19"
+        fill="none"
+        stroke="#000"
+        stroke-width="2.5"
+        stroke-linecap="square"/>
+
+  <circle cx="56" cy="8" r="2" fill="#000"/>
+</svg>
