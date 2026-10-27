@@ -1,0 +1,418 @@
+```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#111111">
+
+    <title>CtrlShift — Developer Tools</title>
+
+    <meta name="description" content="A clean, simple collection of useful developer tools, all in one place.">
+
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
+    <link rel="stylesheet" href="style.css">
+
+    <script src="script.js" defer></script>
+</head>
+
+<body>
+
+    <div class="app">
+
+        <!-- SIDEBAR -->
+        <aside class="sidebar" id="sidebar">
+
+            <a href="#" class="brand" aria-label="CtrlShift dashboard">
+                <span class="brand-icon">&lt;/&gt;</span>
+                <span class="brand-name">CtrlShift<span class="brand-dot">.</span></span>
+            </a>
+
+            <div class="sidebar-label">WORKSPACE</div>
+
+            <nav class="navigation" aria-label="Main navigation">
+                <button class="nav-link active" data-page="dashboard">
+                    <span class="nav-icon">▦</span>
+                    Dashboard
+                </button>
+
+                <button class="nav-link" data-category="all">
+                    <span class="nav-icon">⌘</span>
+                    All Tools
+                    <span class="nav-count">20</span>
+                </button>
+
+                <button class="nav-link" data-category="code">
+                    <span class="nav-icon">&lt;/&gt;</span>
+                    Code Tools
+                </button>
+
+                <button class="nav-link" data-category="text">
+                    <span class="nav-icon">T</span>
+                    Text Tools
+                </button>
+
+                <button class="nav-link" data-category="web">
+                    <span class="nav-icon">↗</span>
+                    Web Tools
+                </button>
+
+                <button class="nav-link" data-category="generators">
+                    <span class="nav-icon">✳</span>
+                    Generators
+                </button>
+
+                <button class="nav-link" data-category="colors">
+                    <span class="nav-icon">◐</span>
+                    Color Tools
+                </button>
+            </nav>
+
+            <div class="sidebar-label secondary-label">PERSONAL</div>
+
+            <nav class="navigation" aria-label="Personal tools">
+                <button class="nav-link" data-page="favorites">
+                    <span class="nav-icon">☆</span>
+                    Favorites
+                </button>
+
+                <button class="nav-link" data-page="recent">
+                    <span class="nav-icon">◷</span>
+                    Recently Used
+                </button>
+            </nav>
+
+            <div class="sidebar-bottom">
+                <div class="status-indicator"></div>
+
+                <div class="status-text">
+                    <strong>All systems ready</strong>
+                    <span>Runs locally in your browser</span>
+                </div>
+            </div>
+
+        </aside>
+
+
+        <!-- MAIN CONTENT -->
+        <main class="main-content">
+
+            <!-- TOP BAR -->
+            <header class="topbar">
+
+                <button class="icon-button menu-button"
+                        id="menu-toggle"
+                        aria-label="Toggle navigation"
+                        aria-expanded="false">
+                    ☰
+                </button>
+
+                <div class="breadcrumb">
+                    <span>CtrlShift</span>
+                    <span class="breadcrumb-divider">/</span>
+                    <strong id="breadcrumb-current">Dashboard</strong>
+                </div>
+
+                <div class="topbar-actions">
+
+                    <label class="search-box">
+                        <span class="search-icon">⌕</span>
+                        <input
+                            type="search"
+                            id="tool-search"
+                            placeholder="Search tools..."
+                            autocomplete="off"
+                            aria-label="Search developer tools">
+                        <kbd> / </kbd>
+                    </label>
+
+                    <button class="icon-button"
+                            id="theme-toggle"
+                            aria-label="Toggle light and dark theme"
+                            title="Toggle theme">
+                        ◐
+                    </button>
+
+                </div>
+
+            </header>
+
+
+            <!-- DASHBOARD PAGE -->
+            <section class="page active" id="dashboard-page">
+
+                <div class="welcome-section">
+
+                    <div>
+                        <div class="eyebrow">
+                            <span class="eyebrow-line"></span>
+                            YOUR DEVELOPER WORKSPACE
+                        </div>
+
+                        <h1>Build something <span>great.</span></h1>
+
+                        <p class="welcome-description">
+                            The tools you need. Nothing you don't.
+                            Simple utilities for everyday development.
+                        </p>
+                    </div>
+
+                    <div class="welcome-decoration" aria-hidden="true">
+                        <span>{</span>
+                        <span class="decoration-slash">/</span>
+                        <span>}</span>
+                    </div>
+
+                </div>
+
+
+                <!-- QUICK STATS -->
+                <div class="stats-grid">
+
+                    <article class="stat-card">
+                        <div class="stat-top">
+                            <span>AVAILABLE TOOLS</span>
+                            <span class="stat-icon">⌘</span>
+                        </div>
+                        <div class="stat-value" id="total-tools">20</div>
+                        <div class="stat-note">Utilities in one workspace</div>
+                    </article>
+
+                    <article class="stat-card">
+                        <div class="stat-top">
+                            <span>YOUR FAVORITES</span>
+                            <span class="stat-icon">☆</span>
+                        </div>
+                        <div class="stat-value" id="favorite-count">0</div>
+                        <div class="stat-note">Saved on this device</div>
+                    </article>
+
+                    <article class="stat-card">
+                        <div class="stat-top">
+                            <span>RECENT ACTIVITY</span>
+                            <span class="stat-icon">◷</span>
+                        </div>
+                        <div class="stat-value" id="recent-count">0</div>
+                        <div class="stat-note">Tools recently opened</div>
+                    </article>
+
+                </div>
+
+
+                <!-- FAVORITES QUICK ACCESS -->
+                <section class="content-section" id="favorites-section">
+
+                    <div class="section-heading">
+                        <div>
+                            <h2>Your favorites</h2>
+                            <p>Keep your most-used tools close.</p>
+                        </div>
+
+                        <button class="text-button" data-page="favorites">
+                            View all <span>→</span>
+                        </button>
+                    </div>
+
+                    <div class="tool-grid compact-grid" id="favorite-tools">
+
+                        <div class="empty-state">
+                            <span class="empty-icon">☆</span>
+                            <p>No favorites yet</p>
+                            <span>Star a tool to add it here.</span>
+                        </div>
+
+                    </div>
+
+                </section>
+
+
+                <!-- ALL TOOLS -->
+                <section class="content-section" id="tools-section">
+
+                    <div class="section-heading">
+                        <div>
+                            <h2 id="tools-heading">Explore tools</h2>
+                            <p id="tools-description">
+                                Small tools that make a big difference.
+                            </p>
+                        </div>
+
+                        <span class="result-count" id="result-count">
+                            20 tools
+                        </span>
+                    </div>
+
+
+                    <!-- CATEGORY FILTERS -->
+                    <div class="filter-bar" id="category-filters">
+
+                        <button class="filter-chip active" data-filter="all">
+                            All tools
+                        </button>
+
+                        <button class="filter-chip" data-filter="code">
+                            Code
+                        </button>
+
+                        <button class="filter-chip" data-filter="text">
+                            Text
+                        </button>
+
+                        <button class="filter-chip" data-filter="web">
+                            Web
+                        </button>
+
+                        <button class="filter-chip" data-filter="generators">
+                            Generators
+                        </button>
+
+                        <button class="filter-chip" data-filter="colors">
+                            Colors
+                        </button>
+
+                    </div>
+
+
+                    <!-- JAVASCRIPT WILL INSERT TOOL CARDS HERE -->
+                    <div class="tool-grid" id="tool-grid">
+
+                        <article class="tool-card loading-card">
+                            <div class="tool-card-icon">{ }</div>
+                            <h3>JSON Formatter</h3>
+                            <p>Format and validate JSON data.</p>
+                        </article>
+
+                        <article class="tool-card loading-card">
+                            <div class="tool-card-icon">T</div>
+                            <h3>Text Converter</h3>
+                            <p>Convert text between different cases.</p>
+                        </article>
+
+                        <article class="tool-card loading-card">
+                            <div class="tool-card-icon">#</div>
+                            <h3>Color Converter</h3>
+                            <p>Convert HEX, RGB and HSL colors.</p>
+                        </article>
+
+                    </div>
+
+
+                    <div class="no-results hidden" id="no-results">
+                        <span>⌕</span>
+                        <h3>No tools found</h3>
+                        <p>Try another search or category.</p>
+                        <button class="secondary-button" id="clear-search">
+                            Clear search
+                        </button>
+                    </div>
+
+                </section>
+
+            </section>
+
+
+            <!-- INDIVIDUAL TOOL WORKSPACE -->
+            <section class="page hidden" id="tool-page">
+
+                <button class="back-button" id="back-to-dashboard">
+                    <span>←</span> Back to dashboard
+                </button>
+
+                <div class="tool-workspace-header">
+                    <div class="tool-workspace-icon" id="workspace-icon">
+                        { }
+                    </div>
+
+                    <div class="workspace-title">
+                        <div class="eyebrow" id="workspace-category">
+                            DEVELOPER TOOL
+                        </div>
+
+                        <h1 id="workspace-title">Tool name</h1>
+
+                        <p id="workspace-description">
+                            Use this tool directly in your browser.
+                        </p>
+                    </div>
+
+                    <button class="icon-button favorite-toggle"
+                            id="workspace-favorite"
+                            aria-label="Add tool to favorites"
+                            title="Add to favorites">
+                        ☆
+                    </button>
+                </div>
+
+                <div class="tool-workspace" id="tool-workspace">
+
+                    <!-- TOOL INTERFACES WILL BE INSERTED HERE -->
+
+                </div>
+
+                <p class="privacy-note">
+                    <span>◉</span>
+                    Your input stays in your browser.
+                </p>
+
+            </section>
+
+
+            <!-- FAVORITES PAGE -->
+            <section class="page hidden" id="favorites-page">
+
+                <div class="page-heading">
+                    <div class="eyebrow">YOUR WORKSPACE</div>
+                    <h1>Favorites<span>.</span></h1>
+                    <p>Quick access to the tools you use most.</p>
+                </div>
+
+                <div class="tool-grid" id="favorites-page-grid"></div>
+
+                <div class="empty-state hidden" id="favorites-empty">
+                    <span class="empty-icon">☆</span>
+                    <h3>Nothing saved yet</h3>
+                    <p>Favorite a tool to find it here.</p>
+                    <button class="secondary-button" data-page="dashboard">
+                        Explore tools
+                    </button>
+                </div>
+
+            </section>
+
+
+            <!-- RECENT TOOLS PAGE -->
+            <section class="page hidden" id="recent-page">
+
+                <div class="page-heading">
+                    <div class="eyebrow">YOUR WORKSPACE</div>
+                    <h1>Recently used<span>.</span></h1>
+                    <p>Your recently opened developer tools.</p>
+                </div>
+
+                <div class="tool-grid" id="recent-tools-grid"></div>
+
+                <div class="empty-state hidden" id="recent-empty">
+                    <span class="empty-icon">◷</span>
+                    <h3>No recent activity</h3>
+                    <p>Open a tool and it will appear here.</p>
+                    <button class="secondary-button" data-page="dashboard">
+                        Explore tools
+                    </button>
+                </div>
+
+            </section>
+
+
+            <!-- FOOTER -->
+            <footer class="app-footer">
+                <span>CtrlShift <span class="footer-dot">/</span> Developer Utilities</span>
+                <span>Made for the workflow.</span>
+            </footer>
+
+        </main>
+
+    </div>
+
+</body>
+</html>
+```
